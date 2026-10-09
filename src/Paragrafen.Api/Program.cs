@@ -13,7 +13,7 @@ var app = builder.Build();
 
 app.UseCors();
 
-app.MapGet("/", () => "Hello World!");
+
 
 app.MapHealthEndpoints();
 
