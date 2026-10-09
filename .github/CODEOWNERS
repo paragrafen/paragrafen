@@ -1,1 +1,14 @@
-* @izaaksarnecki1 @lisbethxy @Markus582 @riccardoie
+/web/                  @izaaksarnecki1
+/.github/              @izaaksarnecki1
+/infra/                @izaaksarnecki1
+/docker-compose.yml    @izaaksarnecki1
+
+/eval/                 @lisbethxy
+
+/ingest/               @riccardoie
+
+/src/                  @Markus582
+/tests/                @Markus582
+
+/db/migrations/        @riccardoie @Markus582
+/contracts/            @Markus582 @izaaksarnecki1
