@@ -1,3 +1,4 @@
+import "./globals.css";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -7,7 +8,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="nb">
-      <body>{children}</body>
+      <body className="bg-background text-foreground antialiased">
+        {children}
+      </body>
     </html>
   );
 }
