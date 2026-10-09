@@ -3,10 +3,16 @@ name = "paragrafen-ingest"
 version = "0.1.0"
 description = "Add your description here"
 authors = [
-    { name = "Izaak Sarnecki", email = "izaak.sarnecki@no.experis.com" }
+    { name = "Izaak Sarnecki", email = "izaak.sarnecki@no.experis.com" },
+    { name = "Riccardo Ieva", email = "riccardo.ieva@no.experis.com" }
 ]
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "lovlig",
+]
+
+[tool.uv.sources]
+lovlig = { git = "ssh://git@github.com/martgra/lovlig.git" }
 
 [project.scripts]
 paragrafen-ingest = "paragrafen_ingest:main"
