@@ -87,8 +87,8 @@ resource api 'Microsoft.App/containerApps@2026-07-01' = {
             { name: 'AZURE_CLIENT_ID', value: apiId.properties.clientId }
           ]
           probes: [
-            { type: 'Readiness', httpGet: { path: '/api/health', port: 8080 } }
-            { type: 'Liveness', httpGet: { path: '/api/health', port: 8080 } }
+            { type: 'Readiness', httpGet: { path: '/health', port: 8080 } }
+            { type: 'Liveness', httpGet: { path: '/health', port: 8080 } }
           ]
         }
       ]
