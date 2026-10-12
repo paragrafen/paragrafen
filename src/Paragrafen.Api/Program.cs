@@ -1,8 +1,20 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Paragrafen.Api.Endpoints;
+using Paragrafen.Api.ExceptionHandlers;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
+
+
+builder.Services.ConfigureHttpJsonOptions(o =>
+{
+    o.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
+    o.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower));
+});
 
 // Probably smart to move this logic into its own class later
 builder.Services.AddCors(options =>
@@ -14,6 +26,7 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 app.UseCors();
+app.UseExceptionHandler();
 
 if (app.Environment.IsDevelopment())
 {
