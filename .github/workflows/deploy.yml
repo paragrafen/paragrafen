@@ -1,0 +1,86 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+env:
+  AZURE_CLIENT_ID: 43c20706-100a-4b0e-8bfa-9b24938dcdaf
+  AZURE_TENANT_ID: 774897da-0c2c-4c71-9897-873c4d659aee
+  AZURE_SUBSCRIPTION_ID: 974a814e-37ba-4cd5-89c5-86509c4996d1
+  RESOURCE_GROUP: rg-paragrafen-dev
+  REGISTRY: crparagrafen
+  IMAGE_PREFIX: crparagrafen.azurecr.io/paragrafen
+  POSTGRES_SERVER: psql-paragrafen-noe
+  FIREWALL_RULE: github-${{ github.run_id }}
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: ci
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: azure/login@v3.1.0
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build and push images
+        run: |
+          az acr login -n "$REGISTRY"
+          docker build -t "$IMAGE_PREFIX-web:$GITHUB_SHA" web
+          docker build -f src/Paragrafen.Api/Dockerfile -t "$IMAGE_PREFIX-api:$GITHUB_SHA" .
+          docker build -t "$IMAGE_PREFIX-ingest:$GITHUB_SHA" ingest
+          for app in web api ingest; do docker push "$IMAGE_PREFIX-$app:$GITHUB_SHA"; done
+
+      - name: Open database firewall for this runner
+        run: |
+          az postgres flexible-server firewall-rule create -g "$RESOURCE_GROUP" -s "$POSTGRES_SERVER" \
+            -n "$FIREWALL_RULE" --start-ip-address "$(curl -fsS https://api.ipify.org)" -o none
+
+      - name: Run migrations
+        env:
+          PGHOST: ${{ env.POSTGRES_SERVER }}.postgres.database.azure.com
+          PGDATABASE: paragrafen
+          PGUSER: id-paragrafen-github
+          PGSSLMODE: require
+        run: |
+          PGPASSWORD=$(az account get-access-token --resource-type oss-rdbms --query accessToken -o tsv)
+          export PGPASSWORD
+          db/migrate.sh
+
+      - name: Close database firewall
+        if: always()
+        run: |
+          az postgres flexible-server firewall-rule delete -g "$RESOURCE_GROUP" -s "$POSTGRES_SERVER" \
+            -n "$FIREWALL_RULE" --yes -o none || echo "No firewall rule to remove"
+
+      - name: Deploy apps
+        id: apps
+        run: |
+          url=$(az deployment group create -g "$RESOURCE_GROUP" -n "apps-$GITHUB_SHA" -f infra/apps.bicep \
+            -p webImage="$IMAGE_PREFIX-web:$GITHUB_SHA" apiImage="$IMAGE_PREFIX-api:$GITHUB_SHA" ingestImage="$IMAGE_PREFIX-ingest:$GITHUB_SHA" \
+            --query properties.outputs.webUrl.value -o tsv)
+          echo "web_url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke test
+        env:
+          WEB_URL: ${{ steps.apps.outputs.web_url }}
+        run: |
+          curl -fsS --retry 6 --retry-all-errors --retry-delay 10 -o /dev/null "$WEB_URL/"
+          curl -fsS --retry 6 --retry-all-errors --retry-delay 10 -X POST "$WEB_URL/api/ask" \
+            -H "content-type: application/json" -d '{"question":"Hva er oppsigelsestiden?"}' | jq -e '.status'
