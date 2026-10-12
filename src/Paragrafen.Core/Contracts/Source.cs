@@ -1,9 +1,9 @@
 namespace Paragrafen.Core.Contracts;
 
 public record Source(
-    Guid ChunkId,
+    string ChunkId,
+    string law,
     string Description,
-    string Title,
     string Section,
     Uri Url
     );
