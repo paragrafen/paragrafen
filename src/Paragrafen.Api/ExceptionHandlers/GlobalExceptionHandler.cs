@@ -47,7 +47,7 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
         };
 
         if (statusCode == StatusCodes.Status500InternalServerError)
-            _logger.LogError(exception, "Unhandled exception for {Path}", httpContext.Request.Path);
+            _logger.LogError(exception, "Unhandled exception for {Endpoint}", httpContext.GetEndpoint()?.DisplayName);
 
         var problemDetails = new ProblemDetails
         {
