@@ -52,7 +52,7 @@ jobs:
           az postgres flexible-server firewall-rule create -g "$RESOURCE_GROUP" -s "$POSTGRES_SERVER" \
             -n "$FIREWALL_RULE" --start-ip-address "$(curl -fsS https://api.ipify.org)" -o none
 
-      - name: Run migrations
+      - name: Run migrations and grant app access
         env:
           PGHOST: ${{ env.POSTGRES_SERVER }}.postgres.database.azure.com
           PGDATABASE: paragrafen
@@ -62,6 +62,7 @@ jobs:
           PGPASSWORD=$(az account get-access-token --resource-type oss-rdbms --query accessToken -o tsv)
           export PGPASSWORD
           db/migrate.sh
+          psql -v ON_ERROR_STOP=1 -q -f infra/db-access.sql
 
       - name: Close database firewall
         if: always()
