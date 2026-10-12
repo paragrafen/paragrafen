@@ -15,6 +15,7 @@ builder.Services.ConfigureHttpJsonOptions(o =>
     o.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
     o.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower));
 });
+builder.Services.Configure<RouteHandlerOptions>(o => o.ThrowOnBadRequest = true);
 
 // Probably smart to move this logic into its own class later
 builder.Services.AddCors(options =>
@@ -36,7 +37,5 @@ if (app.Environment.IsDevelopment())
 
 app.MapHealthEndpoints();
 app.MapAskEndpoints();
-
-
 
 app.Run();

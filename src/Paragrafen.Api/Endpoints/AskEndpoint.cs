@@ -8,7 +8,7 @@ public static class AskEndpoints
 {
     public static IEndpointRouteBuilder MapAskEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapPost("/ask", Ask);
+        app.MapPost("/ask", Ask).ProducesProblem(400);
 
         return app;
     }
