@@ -14,7 +14,7 @@ dependencies = [
 ]
 
 [tool.uv.sources]
-lovlig = { git = "ssh://git@github.com/martgra/lovlig.git" }
+lovlig = { git = "https://github.com/martgra/lovlig.git", rev = "9bfb7e00133ce9a1b4b0de5b212f5fb7dee39394" }
 
 [project.scripts]
 paragrafen-ingest = "paragrafen_ingest:main"
