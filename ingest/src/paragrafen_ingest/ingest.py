@@ -1,12 +1,57 @@
+import logging
 import re
 from contextlib import redirect_stdout
-from io import StringIO
+import os
 from pathlib import Path
-
+from paragrafen_ingest.parser import parse_document
+from paragrafen_ingest.embedder import embed_text, build_embedding_text
 from lovlig import Reporter, Settings, sync_datasets
 
 
 output_dir = Path(__file__).resolve().parents[2] / "data"
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+
+def ingest_data():
+    logger.info("Starting ingestion")
+    log_path = download_sources()
+    logger.info("Data downloaded/updated successfully")
+
+    logger.info("Starting processing documents...")
+    files = get_updated_sources(log_path)
+    logger.info(f"Updated/Added {len(files)} files")
+
+    if (len(files) == 0):
+        logger.info("Sync finished")
+        return
+
+    for file in files:
+        
+        if file["status"] == "removed":
+            # TODO: mark this file as absent in the database.
+            continue
+
+        dataset = (
+            "gjeldende-lover"
+            if file["path"].startswith("nl/")
+            else "gjeldende-sentrale-forskrifter"
+        )
+        source_path = output_dir / "extracted" / dataset / file["path"]
+        doc = parse_document(source_path)
+        
+        doc["embedding"] = embed_text(build_embedding_text(doc), api_key=os.environ["CHAT-GPT-API"])
+
+    logger.info("Finished processing documents successfully")
+    logger.info("Successfully inserted/updated database")
+    
+    # Add to Db is WIP
+    # delete data folders
+    logger.info("Sync finished")
+
 
 # Uses lovlig api to download/update lovdata.
 def download_sources() -> str:
@@ -27,6 +72,7 @@ def download_sources() -> str:
 
     return log_path
 
+# Forms a list of all files that are added/changed/deleted.
 def get_updated_sources(log_path: Path) -> list[dict[str, str]]:
     files = []
     current_status = None
@@ -58,5 +104,4 @@ def get_updated_sources(log_path: Path) -> list[dict[str, str]]:
                 
             else:
                 current_status = None
-    print(f"Updated/Added {len(files)} files")
     return files

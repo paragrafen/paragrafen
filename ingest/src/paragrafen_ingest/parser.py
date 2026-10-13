@@ -53,7 +53,6 @@ def parse_document(
 
     for ordinal, provision in enumerate(units, start=1):
         source_anchor = provision.get("id")
-        chapter_path = []
 
         amendment_nodes = provision.select(".changesToParent")
         amendment_notes = [
@@ -80,7 +79,6 @@ def parse_document(
             "sourceAnchor": source_anchor,
             "sectionRef": text(provision.select_one(".legalArticleValue"))
                 or provision.get("data-name"),
-            "chapterPath": chapter_path,
             "content": text(content_root),
             "amendmentNotes": amendment_notes,
             "references": links(content_root),
