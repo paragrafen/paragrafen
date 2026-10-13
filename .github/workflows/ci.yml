@@ -24,6 +24,8 @@ jobs:
       - run: dotnet restore
       - run: dotnet format --verify-no-changes --no-restore
       - run: dotnet build --no-restore -warnaserror
+      - name: Check contracts/openapi.json matches the API
+        run: git diff --exit-code contracts/openapi.json
       - run: dotnet test --no-build
 
   python:
