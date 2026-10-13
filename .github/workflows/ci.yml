@@ -3,8 +3,7 @@ name: CI
 on:
   pull_request:
     branches: [main]
-  push:
-    branches: [main]
+  workflow_call:
 
 permissions:
   contents: read
@@ -25,6 +24,7 @@ jobs:
       - run: dotnet format --verify-no-changes --no-restore
       - run: dotnet build --no-restore -warnaserror
       - run: dotnet test --no-build
+      - run: docker build -f src/Paragrafen.Api/Dockerfile -t paragrafen-api .
 
   python:
     runs-on: ubuntu-latest
@@ -41,6 +41,8 @@ jobs:
       - run: uv run ruff check
       - run: uv run ruff format --check
       - run: uv run pytest
+        if: matrix.project == 'ingest'
+      - run: docker build -t paragrafen-ingest .
         if: matrix.project == 'ingest'
 
   web:
@@ -83,4 +85,13 @@ jobs:
       PGPASSWORD: postgres
     steps:
       - uses: actions/checkout@v7
-      - run: for f in db/migrations/*.sql; do psql -v ON_ERROR_STOP=1 -f "$f"; done
+      - run: db/migrate.sh
+      - name: Running again applies nothing
+        run: db/migrate.sh
+
+  infra:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: az bicep install
+      - run: for f in infra/*.bicep; do az bicep lint -f "$f"; done
