@@ -12,7 +12,8 @@ param postgresLocation string = 'norwayeast'
 @description('Availability zone for Postgres. Change it if the region reports RegionalAllocationFailed.')
 param postgresZone '1' | '2' | '3' = '1'
 
-param githubRepo string = 'paragrafen/paragrafen'
+@description('GitHub OIDC subject prefix in the immutable format: owner@id/repo@id.')
+param githubRepo string = 'paragrafen@340029239/paragrafen@1410162442'
 param location string = resourceGroup().location
 
 var models = [
