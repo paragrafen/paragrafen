@@ -1,10 +1,9 @@
 from pathlib import Path
+
 from bs4 import BeautifulSoup, Tag
 
 
-def parse_document(
-    source_path: Path
-) -> dict:
+def parse_document(source_path: Path) -> dict:
     """Parse a Lovdata file."""
     raw_html = source_path.read_text(encoding="utf-8")
     soup = BeautifulSoup(raw_html, "html.parser")
@@ -66,21 +65,21 @@ def parse_document(
         clean = BeautifulSoup(str(provision), "html.parser")
         content_root = clean.find()
 
-        for excluded in content_root.select(
-            ".legalArticleHeader, .changesToParent"
-        ):
+        for excluded in content_root.select(".legalArticleHeader, .changesToParent"):
             excluded.decompose()
 
-        paragraphs.append({
-            "kind": "paragraph" if provisions else "body",
-            "ordinal": ordinal,
-            "sourceAnchor": source_anchor,
-            "sectionRef": text(provision.select_one(".legalArticleValue"))
+        paragraphs.append(
+            {
+                "kind": "paragraph" if provisions else "body",
+                "ordinal": ordinal,
+                "sourceAnchor": source_anchor,
+                "sectionRef": text(provision.select_one(".legalArticleValue"))
                 or provision.get("data-name"),
-            "content": text(content_root),
-            "amendmentNotes": amendment_notes,
-            "references": links(content_root),
-        })
+                "content": text(content_root),
+                "amendmentNotes": amendment_notes,
+                "references": links(content_root),
+            }
+        )
 
     document = {
         "lawId": metadata.get("legacyID"),

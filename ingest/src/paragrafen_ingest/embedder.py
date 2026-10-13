@@ -3,7 +3,6 @@ import math
 import httpx
 import tiktoken
 
-
 MODEL = "text-embedding-3-small"
 DIMENSIONS = 1536
 MAX_INPUT_TOKENS = 8192
@@ -16,9 +15,7 @@ def embed_text(text: str, *, api_key: str) -> list[float]:
     if not text.strip():
         raise ValueError("Cannot embed empty text")
 
-    token_count = len(
-        ENCODING.encode(text, disallowed_special=())
-    )
+    token_count = len(ENCODING.encode(text, disallowed_special=()))
 
     print(f"Embedding input: {token_count} tokens")
 
@@ -59,15 +56,18 @@ def embed_text(text: str, *, api_key: str) -> list[float]:
 
     return vector
 
+
 # Builds one string with the whole document ensuring no white space
 def build_embedding_text(document):
-    embedding_text = "\n\n".join([
-        document["title"],
-        *[
-            f"{p.get('sectionRef') or ''}\n{p['content']}".strip()
-            for p in document["paragraphs"]
-            if p["content"].strip()
-        ],
-    ])
+    embedding_text = "\n\n".join(
+        [
+            document["title"],
+            *[
+                f"{p.get('sectionRef') or ''}\n{p['content']}".strip()
+                for p in document["paragraphs"]
+                if p["content"].strip()
+            ],
+        ]
+    )
 
     return embedding_text
