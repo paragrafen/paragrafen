@@ -70,5 +70,4 @@ def build_embedding_text(document):
         ],
     ])
 
-    print(embedding_text)
     return embedding_text
