@@ -16,7 +16,7 @@ public class AiModelService(ChatClient chatClient) : IAiModelService
                 [new UserChatMessage(message)],
                 cancellationToken: cancellationToken);
 
-            if (completion.Content.Count == 0 ||  string.IsNullOrWhiteSpace(completion.Content[0].Text))
+            if (completion.Content.Count == 0 || string.IsNullOrWhiteSpace(completion.Content[0].Text))
             {
                 throw new BadGatewayException("model_no_answer", "The model did not return anything");
             }
