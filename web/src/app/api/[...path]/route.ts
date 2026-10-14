@@ -1,3 +1,5 @@
+import type { AskResponse } from "@/types";
+
 const API_URL = process.env.API_URL;
 const USE_MOCK = !API_URL && process.env.NODE_ENV !== "production";
 
@@ -17,11 +19,13 @@ export async function POST(
         {
           chunk_id: "LOV-2005-06-17-62:§15-6",
           law: "Arbeidsmiljøloven",
+          description: "Prøvetid",
           section: "§ 15-6",
           url: "https://lovdata.no/",
         },
       ],
-    });
+      asked_at: new Date().toISOString(),
+    } satisfies AskResponse);
   }
 
   if (!API_URL) {
