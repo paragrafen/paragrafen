@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Paragrafen.Core.Exceptions;
+using System.ClientModel;
+using Azure.Identity;
 
 namespace Paragrafen.Api.ExceptionHandlers;
 
@@ -43,6 +45,8 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
             ForbiddenException ex => (StatusCodes.Status403Forbidden, ex.Title, ex.Message),
             NotFoundException ex => (StatusCodes.Status404NotFound, ex.Title, ex.Message),
             ConflictException ex => (StatusCodes.Status409Conflict, ex.Title, ex.Message),
+            BadGatewayException ex => (StatusCodes.Status502BadGateway, ex.Title, ex.Message),
+            ServiceUnavailableException ex => (StatusCodes.Status503ServiceUnavailable, ex.Title, ex.Message),
             _ => (
                 StatusCodes.Status500InternalServerError,
                 "Unexpected error",
@@ -50,7 +54,7 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
             ),
         };
 
-        if (statusCode == StatusCodes.Status500InternalServerError)
+        if (statusCode >= StatusCodes.Status500InternalServerError)
             _logger.LogError(exception, "Unhandled exception for {Endpoint}", httpContext.GetEndpoint()?.DisplayName);
 
         var problemDetails = new ProblemDetails
