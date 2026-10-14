@@ -1,11 +1,16 @@
+import hashlib
+
 from pathlib import Path
-
 from bs4 import BeautifulSoup, Tag
-
 
 def parse_document(source_path: Path) -> dict:
     """Parse a Lovdata file."""
-    raw_html = source_path.read_text(encoding="utf-8")
+    raw_bytes = source_path.read_bytes()
+    source_hash = hashlib.sha256(raw_bytes).hexdigest()
+
+    raw_html = raw_bytes.decode("utf-8")
+
+
     soup = BeautifulSoup(raw_html, "html.parser")
 
     # extracts and strips all text in a given field
@@ -42,7 +47,7 @@ def parse_document(source_path: Path) -> dict:
     if not dokid:
         raise ValueError(f"Missing dokid: {source_path}")
 
-    paragraphs = []
+    sections = []
     provisions = body.select("article.legalArticle")
 
     # Support documents with no numbered provisions.
@@ -68,9 +73,9 @@ def parse_document(source_path: Path) -> dict:
         for excluded in content_root.select(".legalArticleHeader, .changesToParent"):
             excluded.decompose()
 
-        paragraphs.append(
+        sections.append(
             {
-                "kind": "paragraph" if provisions else "body",
+                "kind": "provision" if provisions else "body",
                 "ordinal": ordinal,
                 "sourceAnchor": source_anchor,
                 "sectionRef": text(provision.select_one(".legalArticleValue"))
@@ -82,17 +87,14 @@ def parse_document(source_path: Path) -> dict:
         )
 
     document = {
-        "lawId": metadata.get("legacyID"),
         "dokid": dokid,
-        # "refId": metadata.get("refid"),
+        "metadata": metadata,
+        "sourceHash": source_hash,
+        "sourceHashAlgorithm": "sha256",
         "docType": dokid.split("/", 1)[0],
         "sourceVariant": source_path.name,
-        "shortName": metadata.get("titleShort"),
-        "title": metadata.get("title") or text(soup.select_one("head title")),
-        "dateInForce": metadata.get("dateInForce"),
-        "legalArea": metadata.get("legalArea", []),
         "basedOn": links(info.select_one("dd.basedOn")),
-        "paragraphs": paragraphs,
+        "sections": sections,
     }
 
     return document
