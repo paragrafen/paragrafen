@@ -19,7 +19,6 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
         CancellationToken cancellationToken
     )
     {
-        // Statuses without a contract code in CLAUDE.md use the exception's own code.
         (int statusCode, string code, string message) = exception switch
         {
             // Can add more custom exceptions here. pls sort them by status code
