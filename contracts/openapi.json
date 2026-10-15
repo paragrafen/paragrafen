@@ -53,9 +53,19 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -63,9 +73,9 @@
           "502": {
             "description": "Bad Gateway",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -73,9 +83,9 @@
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -162,41 +172,34 @@
           }
         }
       },
-      "ProblemDetails": {
+      "ErrorDetail": {
+        "required": [
+          "code",
+          "message"
+        ],
         "type": "object",
         "properties": {
-          "type": {
-            "type": [
-              "null",
-              "string"
-            ]
+          "code": {
+            "type": "string"
           },
-          "title": {
-            "type": [
-              "null",
-              "string"
-            ]
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "required": [
+          "request_id",
+          "error"
+        ],
+        "type": "object",
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "format": "uuid"
           },
-          "status": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "detail": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "instance": {
-            "type": [
-              "null",
-              "string"
-            ]
+          "error": {
+            "$ref": "#/components/schemas/ErrorDetail"
           }
         }
       },

@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Diagnostics;
-using Microsoft.AspNetCore.Mvc;
+using Paragrafen.Core.Contracts;
 using Paragrafen.Core.Exceptions;
 using System.ClientModel;
 using Azure.Identity;
@@ -11,14 +11,10 @@ namespace Paragrafen.Api.ExceptionHandlers;
 public sealed class GlobalExceptionHandler : IExceptionHandler
 {
     private readonly ILogger<GlobalExceptionHandler> _logger;
-    private readonly IProblemDetailsService _problemDetailsService;
 
-    public GlobalExceptionHandler(
-        ILogger<GlobalExceptionHandler> logger,
-        IProblemDetailsService problemDetailsService)
+    public GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger)
     {
         _logger = logger;
-        _problemDetailsService = problemDetailsService;
     }
 
     public async ValueTask<bool> TryHandleAsync(
@@ -27,53 +23,43 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
         CancellationToken cancellationToken
     )
     {
-        (int statusCode, string title, string detail) = exception switch
+        (int statusCode, string code, string message) = exception switch
         {
             // Can add more custom exceptions here. pls sort them by status code
             BadHttpRequestException => (
                 StatusCodes.Status400BadRequest,
-                "Invalid request",
+                "invalid_request",
                 "The request could not be read. Check the query string and the JSON body."
             ),
-            BadRequestException ex => (
-                StatusCodes.Status400BadRequest,
-                ex.Title,
-                ex.Message
-                ),
-
-            UnauthorizedException ex => (StatusCodes.Status401Unauthorized, ex.Title, ex.Message),
-            ForbiddenException ex => (StatusCodes.Status403Forbidden, ex.Title, ex.Message),
-            NotFoundException ex => (StatusCodes.Status404NotFound, ex.Title, ex.Message),
-            ConflictException ex => (StatusCodes.Status409Conflict, ex.Title, ex.Message),
+            BadRequestException ex => (StatusCodes.Status400BadRequest, "invalid_request", ex.Message),
+            UnauthorizedException ex => (StatusCodes.Status401Unauthorized, "unauthorized", ex.Message),
+            ForbiddenException ex => (StatusCodes.Status403Forbidden, ex.Code, ex.Message),
+            NotFoundException ex => (StatusCodes.Status404NotFound, ex.Code, ex.Message),
+            ConflictException ex => (StatusCodes.Status409Conflict, ex.Code, ex.Message),
             BadGatewayException ex => (StatusCodes.Status502BadGateway, ex.Title, ex.Message),
             ServiceUnavailableException ex => (StatusCodes.Status503ServiceUnavailable, ex.Title, ex.Message),
             _ => (
                 StatusCodes.Status500InternalServerError,
-                "Unexpected error",
-                "An Unexpected error occured."
+                "internal_error",
+                "An unexpected error occurred."
             ),
         };
 
-        if (statusCode >= StatusCodes.Status500InternalServerError)
-            _logger.LogError(exception, "Unhandled exception for {Endpoint}", httpContext.GetEndpoint()?.DisplayName);
+        var requestId = httpContext.GetRequestId();
 
-        var problemDetails = new ProblemDetails
-        {
-            Status = statusCode,
-            Title = title,
-            Detail = detail,
-            Instance = httpContext.Request.Path,
-        };
+        if (statusCode == StatusCodes.Status500InternalServerError)
+            _logger.LogError(exception, "Unhandled exception for {Endpoint}, request {RequestId}",
+                httpContext.GetEndpoint()?.DisplayName, requestId);
+        else
+            _logger.LogWarning("Request {RequestId} failed with {StatusCode} {Code}: {Message}",
+                requestId, statusCode, (exception as AppException)?.Code ?? code, exception.Message);
 
-        if (exception is AppException appException)
-            problemDetails.Extensions["code"] = appException.Code;
+
         httpContext.Response.StatusCode = statusCode;
+        await httpContext.Response.WriteAsJsonAsync(
+            new ErrorResponse(requestId, new ErrorDetail(code, message)),
+            cancellationToken);
 
-        return await _problemDetailsService.TryWriteAsync(new ProblemDetailsContext
-        {
-            HttpContext = httpContext,
-            Exception = exception,
-            ProblemDetails = problemDetails
-        });
+        return true;
     }
 }

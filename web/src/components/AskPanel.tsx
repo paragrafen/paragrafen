@@ -11,7 +11,7 @@ export function AskPanel() {
   return (
     <div className="space-y-6">
       <QuestionForm onSubmit={ask} loading={loading} />
-      {error && <ErrorMessage message={error} />}
+      {error && <ErrorMessage error={error} />}
       <div aria-live="polite">{data && <Answer data={data} />}</div>
     </div>
   );

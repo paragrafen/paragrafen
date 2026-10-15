@@ -1,7 +1,5 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Paragrafen.Core.Contracts;
-using Paragrafen.Core.Exceptions;
-using OpenAI.Chat;
 using Paragrafen.Core.Abstractions;
 
 namespace Paragrafen.Api.Endpoints;
@@ -12,7 +10,10 @@ public static class AskEndpoints
     public static IEndpointRouteBuilder MapAskEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapPost("/ask", Ask)
-            .ProducesProblem(400).ProducesProblem(502).ProducesProblem(503);
+            .Produces<ErrorResponse>(StatusCodes.Status400BadRequest)
+            .Produces<ErrorResponse>(StatusCodes.Status500InternalServerError)
+            .Produces<ErrorResponse>(StatusCodes.Status502BadGateway)
+            .Produces<ErrorResponse>(StatusCodes.Status503ServiceUnavailable);
 
         return app;
     }
@@ -20,10 +21,12 @@ public static class AskEndpoints
     private static async Task<Ok<AskResponse>> Ask(
         AskRequest request,
         IAskService askService,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken,
+        HttpContext context
         )
     {
-        var response = await askService.AskAsync(request, cancellationToken);
+        var requestId = context.GetRequestId();
+        var response = await askService.AskAsync(request, cancellationToken, requestId);
 
         return TypedResults.Ok(response);
     }

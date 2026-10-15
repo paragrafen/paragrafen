@@ -35,7 +35,8 @@ cd web && npm run build
 
 ## Rules that matter
 
-- Schema, `chunk_id` and `contracts/openapi.json` change only through a PR that updates both sides (Python and C#).
+- Schema and `chunk_id` change only through a PR that updates both sides (Python and C#).
+- `contracts/openapi.json` and `web/src/types.ts` are generated. After changing the API contract, run `dotnet build` (rewrites `openapi.json`) and `cd web && npm run gen:types` (rewrites `types.ts`), and commit both. CI fails if either is out of date.
 - Changes to search, prompts or the model include eval numbers from before and after.
 - No secrets, personal data or customer data in the repo.
 - Code, comments and docs are in English. UI text is in Norwegian.
