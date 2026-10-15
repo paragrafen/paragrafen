@@ -4,5 +4,5 @@ namespace Paragrafen.Core.Abstractions;
 
 public interface IAskService
 {
-    Task<AskResponse> AskAsync(AskRequest request, CancellationToken cancellationToken);
+    Task<AskResponse> AskAsync(AskRequest request, CancellationToken cancellationToken, Guid requestId);
 }

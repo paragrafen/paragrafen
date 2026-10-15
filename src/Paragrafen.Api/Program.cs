@@ -33,8 +33,10 @@ builder.Services.AddSingleton(_ =>
 {
     var endpoint = builder.Configuration["Foundry:Endpoint"]
                    ?? throw new InvalidOperationException("Foundry:Endpoint is not configured.");
+    var chatDeployment = builder.Configuration["Foundry:ChatClient"]
+                     ?? throw new InvalidOperationException("Foundry:ChatClient is not configured.");
     var client = new AzureOpenAIClient(new Uri(endpoint), new DefaultAzureCredential());
-    return client.GetChatClient("gpt-6-luna");
+    return client.GetChatClient(chatDeployment);
 });
 
 builder.Services.AddSingleton<IAiModelService, AiModelService>();
