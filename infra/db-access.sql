@@ -20,3 +20,5 @@ GRANT USAGE ON SCHEMA public TO "id-paragrafen-api", "id-paragrafen-ingest";
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON chunks TO "id-paragrafen-ingest";
 GRANT SELECT ON chunks TO "id-paragrafen-api";
+
+GRANT INSERT ON calls TO "id-paragrafen-api";

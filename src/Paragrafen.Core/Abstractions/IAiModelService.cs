@@ -1,6 +1,8 @@
+using Paragrafen.Core.Models;
+
 namespace Paragrafen.Core.Abstractions;
 
 public interface IAiModelService
 {
-    Task<string> CompleteAsync(string message, CancellationToken cancellationToken);
+    Task<ModelResult> CompleteAsync(string message, CancellationToken cancellationToken);
 }
