@@ -1,8 +1,12 @@
 using Microsoft.AspNetCore.Diagnostics;
 using Paragrafen.Core.Contracts;
 using Paragrafen.Core.Exceptions;
+using System.ClientModel;
+using Azure.Identity;
 
 namespace Paragrafen.Api.ExceptionHandlers;
+
+
 
 public sealed class GlobalExceptionHandler : IExceptionHandler
 {
@@ -32,6 +36,8 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
             ForbiddenException ex => (StatusCodes.Status403Forbidden, ex.Code, ex.Message),
             NotFoundException ex => (StatusCodes.Status404NotFound, ex.Code, ex.Message),
             ConflictException ex => (StatusCodes.Status409Conflict, ex.Code, ex.Message),
+            BadGatewayException ex => (StatusCodes.Status502BadGateway, ex.Code, ex.Message),
+            ServiceUnavailableException ex => (StatusCodes.Status503ServiceUnavailable, ex.Code, ex.Message),
             _ => (
                 StatusCodes.Status500InternalServerError,
                 "internal_error",
@@ -41,12 +47,13 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
 
         var requestId = httpContext.GetRequestId();
 
-        if (statusCode == StatusCodes.Status500InternalServerError)
+        if (statusCode >= StatusCodes.Status500InternalServerError)
             _logger.LogError(exception, "Unhandled exception for {Endpoint}, request {RequestId}",
                 httpContext.GetEndpoint()?.DisplayName, requestId);
         else
             _logger.LogWarning("Request {RequestId} failed with {StatusCode} {Code}: {Message}",
                 requestId, statusCode, (exception as AppException)?.Code ?? code, exception.Message);
+
 
         httpContext.Response.StatusCode = statusCode;
         await httpContext.Response.WriteAsJsonAsync(

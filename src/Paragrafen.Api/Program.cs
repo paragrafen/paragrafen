@@ -2,6 +2,11 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Paragrafen.Api.Endpoints;
 using Paragrafen.Api.ExceptionHandlers;
+using Azure.AI.OpenAI;
+using Azure.Identity;
+using Paragrafen.Core.Abstractions;
+using Paragrafen.Core.Services;
+using Paragrafen.Data.Ai;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,6 +28,19 @@ builder.Services.AddCors(options =>
         policy.WithOrigins(builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? [])
             .AllowAnyHeader()
             .AllowAnyMethod()));
+
+builder.Services.AddSingleton(_ =>
+{
+    var endpoint = builder.Configuration["Foundry:Endpoint"]
+                   ?? throw new InvalidOperationException("Foundry:Endpoint is not configured.");
+    var chatDeployment = builder.Configuration["Foundry:ChatClient"]
+                     ?? throw new InvalidOperationException("Foundry:ChatClient is not configured.");
+    var client = new AzureOpenAIClient(new Uri(endpoint), new DefaultAzureCredential());
+    return client.GetChatClient(chatDeployment);
+});
+
+builder.Services.AddSingleton<IAiModelService, AiModelService>();
+builder.Services.AddScoped<IAskService, AskService>();
 
 var app = builder.Build();
 
