@@ -3,10 +3,21 @@ name = "paragrafen-ingest"
 version = "0.1.0"
 description = "Add your description here"
 authors = [
-    { name = "Izaak Sarnecki", email = "izaak.sarnecki@no.experis.com" }
+    { name = "Izaak Sarnecki", email = "izaak.sarnecki@no.experis.com" },
+    { name = "Riccardo Ieva", email = "riccardo.ieva@no.experis.com" }
 ]
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "bs4>=0.0.2",
+    "httpx>=0.28.1",
+    "openai>=3.31.0",
+    "pgvector>=0.5.1",
+    "psycopg[binary]>=3.3.6",
+    "tiktoken>=0.14.0",
+]
+
+[tool.uv.sources]
+lovlig = { git = "https://github.com/martgra/lovlig.git", rev = "9bfb7e00133ce9a1b4b0de5b212f5fb7dee39394" }
 
 [project.scripts]
 paragrafen-ingest = "paragrafen_ingest:main"

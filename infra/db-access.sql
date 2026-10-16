@@ -18,5 +18,8 @@ WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'id-paragrafen-ingest')
 
 GRANT USAGE ON SCHEMA public TO "id-paragrafen-api", "id-paragrafen-ingest";
 
-GRANT SELECT, INSERT, UPDATE, DELETE ON chunks TO "id-paragrafen-ingest";
-GRANT SELECT ON chunks TO "id-paragrafen-api";
+GRANT SELECT, INSERT, UPDATE, DELETE
+    ON public.documents, public.sections, public.chunks
+    TO "id-paragrafen-ingest";
+GRANT SELECT ON public.documents, public.sections, public.chunks
+    TO "id-paragrafen-api";
