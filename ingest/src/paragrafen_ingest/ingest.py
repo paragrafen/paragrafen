@@ -31,22 +31,29 @@ logging.basicConfig(
 )
 
 
-def ingest_data() -> None:
+def ingest_data(dataset: str) -> None:
     docs = []
     recent_requests = deque()
-    destination = Path(output_dir).expanduser().resolve()
+    destination = Path(
+        os.environ.get("INGEST_DATA_DIR", str(output_dir))
+    ).expanduser().resolve()
     destination.mkdir(parents=True, exist_ok=True)
 
     logger.info("Starting ingestion")
 
-    download_sources(destination)
+    download_sources(destination, dataset)
 
     logger.info("Data downloaded/updated successfully")
 
     logger.info("Starting processing documents...")
 
+    if(dataset == "lov"):
+        extracted_file_path = destination / "extracted" / "gjeldende-lover" / "nl"
+    else: 
+        extracted_file_path = destination / "extracted" / "gjeldende-sentrale-forskrifter" / "sf"
+
     # Check which files changed
-    with os.scandir(destination / "extracted" / "gjeldende-lover" / "nl") as entries:
+    with os.scandir(extracted_file_path) as entries:
         for entry in entries:
             if entry.is_file():
                 doc = parse_document(Path(entry.path))
@@ -119,11 +126,17 @@ def find_changed_chunks(conn: psycopg.Connection, document: dict) -> list[dict]:
     return changed_chunks
 
 
-def download_sources(destination: Path) -> None:
+def download_sources(destination: Path, dataset: str) -> None:
     """Download latest lov/forskrifter and extract them to the data folder"""
-    url = "https://api.lovdata.no/v1/publicData/get/gjeldende-lover.tar.bz2"
-    archive_path = destination / "gjeldende-lover.tar.bz2"
-    extracted_dir = destination / "extracted" / "gjeldende-lover"
+
+    if (dataset == "lov"):
+        url = "https://api.lovdata.no/v1/publicData/get/gjeldende-lover.tar.bz2"
+        archive_path = destination / "gjeldende-lover.tar.bz2"
+        extracted_dir = destination / "extracted" / "gjeldende-lover"
+    else: 
+        url = "https://api.lovdata.no/v1/publicData/get/gjeldende-sentrale-forskrifter.tar.bz2"
+        archive_path = destination / "gjeldende-sentrale-forskrifter.tar.bz2"
+        extracted_dir = destination / "extracted" / "gjeldende-sentrale-forskrifter"
 
     # Stream the download to disk instead of loading it all into memory.
     with (
