@@ -36,8 +36,8 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
             ForbiddenException ex => (StatusCodes.Status403Forbidden, ex.Code, ex.Message),
             NotFoundException ex => (StatusCodes.Status404NotFound, ex.Code, ex.Message),
             ConflictException ex => (StatusCodes.Status409Conflict, ex.Code, ex.Message),
-            BadGatewayException ex => (StatusCodes.Status502BadGateway, ex.Title, ex.Message),
-            ServiceUnavailableException ex => (StatusCodes.Status503ServiceUnavailable, ex.Title, ex.Message),
+            BadGatewayException ex => (StatusCodes.Status502BadGateway, ex.Code, ex.Message),
+            ServiceUnavailableException ex => (StatusCodes.Status503ServiceUnavailable, ex.Code, ex.Message),
             _ => (
                 StatusCodes.Status500InternalServerError,
                 "internal_error",
