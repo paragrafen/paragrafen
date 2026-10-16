@@ -1,7 +1,8 @@
 import hashlib
-
 from pathlib import Path
+
 from bs4 import BeautifulSoup, Tag
+
 
 def parse_document(source_path: Path) -> dict:
     """Parse a Lovdata file."""
@@ -9,7 +10,6 @@ def parse_document(source_path: Path) -> dict:
     source_hash = hashlib.sha256(raw_bytes).hexdigest()
 
     raw_html = raw_bytes.decode("utf-8")
-
 
     soup = BeautifulSoup(raw_html, "html.parser")
 

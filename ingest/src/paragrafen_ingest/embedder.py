@@ -1,6 +1,7 @@
-from collections.abc import Iterator
-import math
 import hashlib
+import os
+from collections.abc import Iterator
+from functools import cache
 import httpx
 import tiktoken
 
@@ -8,49 +9,40 @@ MODEL = "text-embedding-3-small"
 DIMENSIONS = 1536
 MAX_INPUT_TOKENS = 8192
 
-ENCODING = tiktoken.encoding_for_model(MODEL)
+@cache
+def _encoding() -> tiktoken.Encoding:
+    return tiktoken.encoding_for_model(MODEL)
 
 
-def embed_text(document: dict, *, api_key: str) -> list[float]:
-    """Generate one embedding for a chunk."""
-    chunks = [
-        chunk
-        for section in document["sections"]
-        for chunk in section.get("chunks", [])
-    ]
+def embed_text(chunks, *, api_key: str) -> None:
+    """Generate one embedding for each chunk and adds it to the document."""
 
-    print(chunks)
+    response = httpx.post(
+        os.environ["EMBEDDING_URL"],
+        headers={
+            "api-key": api_key,
+        },
+        json={
+            "input": [chunk["embeddingText"] for chunk in chunks],
+            "dimensions": DIMENSIONS,
+            "encoding_format": "float",
+        },
+        timeout=60.0,
+    )
+    response.raise_for_status()
 
-    # response = httpx.post(
-    #     "https://paragrafen-foundry-dev.cognitiveservices.azure.com/openai/deployments/text-embedding-3-small/embeddings?api-version=2023-05-15",
-    #     headers={
-    #         "Authorization": f"Bearer {api_key}",
-    #     },
-    #     json={
-    #         "model": MODEL,
-    #         "input": text,
-    #         "dimensions": DIMENSIONS,
-    #         "encoding_format": "float",
-    #     },
-    #     timeout=60.0,
-    # )
-    # response.raise_for_status()
+    items = response.json()["data"]
 
-    # items = response.json()["data"]
+    if len(items) != len(chunks):
+        raise ValueError(f"Expected {len(chunks)} embeddings, received {len(items)}")
 
-    # if len(items) != 1 or items[0]["index"] != 0:
-    #     raise ValueError("Unexpected embedding response")
+    vectors_by_index = {item["index"]: item["embedding"] for item in items}
 
-    # vector = items[0]["embedding"]
+    # Resolve all vectors before modifying any chunks.
+    vectors = [vectors_by_index[index] for index in range(len(chunks))]
+    for chunk, vector in zip(chunks, vectors):
+        chunk["embedding"] = vector
 
-    # if (
-    #     len(vector) != DIMENSIONS
-    #     or not all(math.isfinite(value) for value in vector)
-    #     or not any(value != 0 for value in vector)
-    # ):
-    #     raise ValueError("Invalid embedding vector")
-
-    # return vector
 
 def build_embedding_text(document: dict) -> list[dict]:
     """Build one embedding-ready chunk per non-empty provision
@@ -69,25 +61,21 @@ def build_embedding_text(document: dict) -> list[dict]:
             continue
 
         context = [
-            document.get("title"),
+            document["metadata"].get("title"),
             section.get("sectionRef"),
-            section.get("heading"),
         ]
 
         embedding_text = "\n\n".join(
             [
-                *[
-                    value.strip()
-                    for value in context
-                    if value and value.strip()
-                ],
+                *[value.strip() for value in context if value and value.strip()],
                 content,
             ]
         )
-        
+
         # split_to_fit returns a list of text and tokens, form a chunk for each
         for ordinal, (chunk_text, chunk_tokens) in enumerate(
-            split_to_fit(embedding_text)):
+            split_to_fit(embedding_text)
+        ):
             chunk = {
                 "ordinal": ordinal,
                 "embeddingText": chunk_text,
@@ -100,9 +88,12 @@ def build_embedding_text(document: dict) -> list[dict]:
             all_chunks.append(chunk)
     return all_chunks
 
-# Recursively splits the original text until each component is small enough
+
 def split_to_fit(text) -> Iterator[tuple[str, int]]:
-    token_count = len(ENCODING.encode(text, disallowed_special=()))
+    """Recursively splits the original text until each component is small enough
+    to fit the max nr of tokens."""
+
+    token_count = len(_encoding().encode(text, disallowed_special=()))
 
     if token_count <= MAX_INPUT_TOKENS:
         yield text, token_count
@@ -111,32 +102,3 @@ def split_to_fit(text) -> Iterator[tuple[str, int]]:
     midpoint = len(text) // 2
     yield from split_to_fit(text[:midpoint])
     yield from split_to_fit(text[midpoint:])
-
-def embedding_batches(
-    chunks: list[dict],
-    *,
-    max_chunks: int = 32,
-    max_tokens: int = 100_000,
-) -> Iterator[list[dict]]:
-    batch = []
-    tokens = 0
-
-    for chunk in chunks:
-        chunk_tokens = chunk["tokenCount"]
-
-        if chunk_tokens > max_tokens:
-            raise ValueError("Chunk exceeds the batch token limit")
-
-        if batch and (
-            len(batch) >= max_chunks
-            or tokens + chunk_tokens > max_tokens
-        ):
-            yield batch
-            batch = []
-            tokens = 0
-
-        batch.append(chunk)
-        tokens += chunk_tokens
-
-    if batch:
-        yield batch
