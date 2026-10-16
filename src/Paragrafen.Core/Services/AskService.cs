@@ -1,6 +1,7 @@
 using Paragrafen.Core.Abstractions;
 using Paragrafen.Core.Contracts;
 using Paragrafen.Core.Exceptions;
+using Paragrafen.Core.Models;
 
 
 namespace Paragrafen.Core.Services;
@@ -16,13 +17,16 @@ public class AskService(IAiModelService aiModelService) : IAskService
 
         var conversationId = request.ConversationId ?? Guid.CreateVersion7();
 
-        string aiModelAnswer = await aiModelService.CompleteAsync(request.Question, cancellationToken);
+        ModelResult result = await aiModelService.CompleteAsync(request.Question, cancellationToken);
+
+        if (string.IsNullOrWhiteSpace(result.Text))
+            throw new BadGatewayException("model_no_answer", "The model did not return anything");
 
         return new AskResponse(
             requestId,
             conversationId,
             AnswerStatus.Answered,
-            aiModelAnswer,
+            result.Text,
             new List<Source>(),
             DateTime.UtcNow
         );
