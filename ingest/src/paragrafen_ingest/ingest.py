@@ -2,6 +2,8 @@ import logging
 import os
 import shutil
 import tarfile
+import time
+from collections import deque
 from pathlib import Path
 from urllib.request import urlopen
 
@@ -18,6 +20,9 @@ from paragrafen_ingest.embedder import build_embedding_text, embed_text
 from paragrafen_ingest.parser import parse_document
 
 output_dir = Path(__file__).resolve().parents[2] / "data"
+TOKEN_BUDGET = 140_000  # maximum tpr
+REQUEST_BUDGET = 900  # maximum rpr
+
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -28,6 +33,7 @@ logging.basicConfig(
 
 def ingest_data() -> None:
     docs = []
+    recent_requests = deque()
     destination = Path(output_dir).expanduser().resolve()
     destination.mkdir(parents=True, exist_ok=True)
 
@@ -60,13 +66,7 @@ def ingest_data() -> None:
                 documents_to_ingest += 1
                 build_embedding_text(document)
                 chunks_to_embed = find_changed_chunks(conn, document)
-
-                # Remove this loop
-                for start in range(0, len(chunks_to_embed), 16):
-                    embed_text(
-                        chunks_to_embed[start : start + 16],
-                        api_key=os.environ["EMBEDDING_API"],
-                    )
+                send_embedding_requests(chunks_to_embed, recent_requests)
 
                 # Update documents values in db
                 upsert_document(conn, document)
@@ -84,7 +84,7 @@ def ingest_data() -> None:
     logger.info("Successfully inserted/updated database")
 
     logger.info("Deleting data folder...")
-    os.remove(destination)
+    shutil.rmtree(destination)
     logger.info("Successfully deleted data folder")
     logger.info("Sync finished")
 
@@ -136,3 +136,63 @@ def download_sources(destination: Path) -> None:
     extracted_dir.mkdir(parents=True, exist_ok=True)
     with tarfile.open(archive_path, mode="r:bz2") as archive:
         archive.extractall(path=extracted_dir, filter="data")
+
+
+def batch_chunks(chunks, max_tokens: int = 140_000, max_inputs: int = 2048):
+    """Batches chunks requests in order to avoid sending a request
+    with an higher cost than the token budget
+    """
+    batch = []
+    batch_tokens = 0
+
+    for chunk in chunks:
+        tokens = chunk["tokenCount"]
+
+        if tokens > max_tokens:
+            raise ValueError(f"Chunk has {tokens} tokens; batch limit is {max_tokens}")
+
+        if batch and (batch_tokens + tokens > max_tokens or len(batch) >= max_inputs):
+            yield batch
+            batch = []
+            batch_tokens = 0
+
+        batch.append(chunk)
+        batch_tokens += tokens
+
+    if batch:
+        yield batch
+
+
+def send_embedding_requests(chunks_to_embed, recent_requests):
+    """Ensures that each request is within the budgets, when a request
+    exceeds the limit it waits for one minute in order to reset the
+    budget."""
+    for batch in batch_chunks(chunks_to_embed, max_tokens=TOKEN_BUDGET):
+        batch_tokens = sum(chunk["tokenCount"] for chunk in batch)
+
+        while True:
+            now = time.monotonic()
+
+            # Discard requests outside the rolling minute.
+            while recent_requests and now - recent_requests[0][0] >= 60:
+                recent_requests.popleft()
+
+            used_tokens = sum(tokens for _, tokens in recent_requests)
+
+            if (
+                used_tokens + batch_tokens <= TOKEN_BUDGET
+                and len(recent_requests) < REQUEST_BUDGET
+            ):
+                break
+
+            wait_seconds = max(0, 60 - (now - recent_requests[0][0]))
+            logger.info("Waiting %.1fs for embedding quota", wait_seconds)
+            time.sleep(wait_seconds)
+
+        embed_text(
+            batch,
+            api_key=os.environ["EMBEDDING_API"],
+        )
+
+        # Using completion time makes the accounting conservative.
+        recent_requests.append((time.monotonic(), batch_tokens))
