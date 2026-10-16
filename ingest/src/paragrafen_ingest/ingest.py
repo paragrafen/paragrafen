@@ -34,9 +34,9 @@ logging.basicConfig(
 def ingest_data(dataset: str) -> None:
     docs = []
     recent_requests = deque()
-    destination = Path(
-        os.environ.get("INGEST_DATA_DIR", str(output_dir))
-    ).expanduser().resolve()
+    destination = (
+        Path(os.environ.get("INGEST_DATA_DIR", str(output_dir))).expanduser().resolve()
+    )
     destination.mkdir(parents=True, exist_ok=True)
 
     logger.info("Starting ingestion")
@@ -47,10 +47,12 @@ def ingest_data(dataset: str) -> None:
 
     logger.info("Starting processing documents...")
 
-    if(dataset == "lov"):
+    if dataset == "lov":
         extracted_file_path = destination / "extracted" / "gjeldende-lover" / "nl"
-    else: 
-        extracted_file_path = destination / "extracted" / "gjeldende-sentrale-forskrifter" / "sf"
+    else:
+        extracted_file_path = (
+            destination / "extracted" / "gjeldende-sentrale-forskrifter" / "sf"
+        )
 
     # Check which files changed
     with os.scandir(extracted_file_path) as entries:
@@ -129,11 +131,11 @@ def find_changed_chunks(conn: psycopg.Connection, document: dict) -> list[dict]:
 def download_sources(destination: Path, dataset: str) -> None:
     """Download latest lov/forskrifter and extract them to the data folder"""
 
-    if (dataset == "lov"):
+    if dataset == "lov":
         url = "https://api.lovdata.no/v1/publicData/get/gjeldende-lover.tar.bz2"
         archive_path = destination / "gjeldende-lover.tar.bz2"
         extracted_dir = destination / "extracted" / "gjeldende-lover"
-    else: 
+    else:
         url = "https://api.lovdata.no/v1/publicData/get/gjeldende-sentrale-forskrifter.tar.bz2"
         archive_path = destination / "gjeldende-sentrale-forskrifter.tar.bz2"
         extracted_dir = destination / "extracted" / "gjeldende-sentrale-forskrifter"
