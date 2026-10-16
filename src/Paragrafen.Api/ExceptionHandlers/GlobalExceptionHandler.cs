@@ -47,7 +47,7 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
 
         var requestId = httpContext.GetRequestId();
 
-        if (statusCode == StatusCodes.Status500InternalServerError)
+        if (statusCode >= StatusCodes.Status500InternalServerError)
             _logger.LogError(exception, "Unhandled exception for {Endpoint}, request {RequestId}",
                 httpContext.GetEndpoint()?.DisplayName, requestId);
         else
