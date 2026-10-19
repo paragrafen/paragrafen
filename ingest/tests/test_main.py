@@ -264,8 +264,9 @@ def test_build_embedding_text_skips_empty_sections_and_hashes_input(fake_encodin
 
 
 def test_find_changed_chunks_returns_only_changed_and_new(monkeypatch):
-    get_hashes = Mock(return_value=[(1, 0, "same"), (1, 1, "old")])
-    monkeypatch.setattr(ingest, "get_chunk_hashes", get_hashes)
+    embedding = [0.1, 0.2]
+    get_embeddings = Mock(return_value={"same": embedding})
+    monkeypatch.setattr(ingest, "get_embeddings_by_hash", get_embeddings)
     chunks = [
         {"ordinal": 0, "embeddingInputHash": "same"},
         {"ordinal": 1, "embeddingInputHash": "changed"},
@@ -281,4 +282,41 @@ def test_find_changed_chunks_returns_only_changed_and_new(monkeypatch):
     changed = ingest.find_changed_chunks(conn, document)
 
     assert changed == chunks[1:]
-    get_hashes.assert_called_once_with(conn, "NL/lov/example", "example.xml")
+    assert chunks[0]["embedding"] == embedding
+    assert all("embedding" not in chunk for chunk in changed)
+    get_embeddings.assert_called_once()
+    lookup_conn, hashes = get_embeddings.call_args.args
+    assert lookup_conn is conn
+    assert set(hashes) == {"same", "changed", "new"}
+
+
+def test_find_changed_chunks_reuses_embeddings_after_section_insertion(
+    monkeypatch, fake_encoding
+):
+    document = {
+        "metadata": {"title": "Example law"},
+        "sections": [
+            {"ordinal": 1, "sectionRef": "Section 1", "content": "First"},
+            {"ordinal": 2, "sectionRef": "Section 2", "content": "Second"},
+        ],
+    }
+    original_chunks = embedder.build_embedding_text(document)
+    stored_embeddings = {
+        chunk["embeddingInputHash"]: [float(index + 1)]
+        for index, chunk in enumerate(original_chunks)
+    }
+    get_embeddings = Mock(return_value=stored_embeddings)
+    monkeypatch.setattr(ingest, "get_embeddings_by_hash", get_embeddings)
+
+    document["sections"].insert(
+        1, {"ordinal": 2, "sectionRef": "Section 1 a", "content": "Inserted"}
+    )
+    document["sections"][2]["ordinal"] = 3
+    chunks = embedder.build_embedding_text(document)
+
+    changed = ingest.find_changed_chunks(object(), document)
+
+    assert changed == [chunks[1]]
+    assert "embedding" not in chunks[1]
+    assert chunks[0]["embedding"] == [1.0]
+    assert chunks[2]["embedding"] == [2.0]

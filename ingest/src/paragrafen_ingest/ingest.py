@@ -12,8 +12,8 @@ import psycopg
 from paragrafen_ingest.db_client import (
     create_connection,
     delete_document,
-    get_embeddings_by_hash,
     get_document_hashes,
+    get_embeddings_by_hash,
     upsert_document,
 )
 from paragrafen_ingest.embedder import build_embedding_text, embed_text
@@ -104,9 +104,7 @@ def ingest_data(dataset: str) -> None:
 # Finds all chunks text that changed in a document
 def find_changed_chunks(conn: psycopg.Connection, document: dict) -> list[dict]:
     chunks = [
-        chunk
-        for section in document["sections"]
-        for chunk in section.get("chunks", [])
+        chunk for section in document["sections"] for chunk in section.get("chunks", [])
     ]
 
     hashes = list({chunk["embeddingInputHash"] for chunk in chunks})
@@ -114,9 +112,9 @@ def find_changed_chunks(conn: psycopg.Connection, document: dict) -> list[dict]:
 
     changed_chunks = []
 
-    # In the case a new "ledd" is added make sure to update the ordinals 
-    # accordigly without re-embedding the whole text again. 
-    # If no embedding is found the chunk text gets embedded in the ingest function. 
+    # In the case a new "ledd" is added make sure to update the ordinals
+    # accordigly without re-embedding the whole text again.
+    # If no embedding is found the chunk text gets embedded in the ingest function.
     for chunk in chunks:
         embedding = stored_embeddings.get(chunk["embeddingInputHash"])
 

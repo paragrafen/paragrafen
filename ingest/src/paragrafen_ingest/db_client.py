@@ -28,7 +28,10 @@ def get_document_hashes(conn: psycopg.Connection) -> dict[tuple[str, str], str]:
             for dokid, source_variant, source_hash in cur.fetchall()
         }
 
-def get_embeddings_by_hash(conn: psycopg.Connection, hashes: list[str],
+
+def get_embeddings_by_hash(
+    conn: psycopg.Connection,
+    hashes: list[str],
 ) -> dict[str, list[float]]:
     """Gets all the embeddings of the passed hashes list in the db"""
     if not hashes:
@@ -49,9 +52,9 @@ def get_embeddings_by_hash(conn: psycopg.Connection, hashes: list[str],
         )
 
         return {
-            input_hash: embedding.tolist()
-            for input_hash, embedding in cur.fetchall()
+            input_hash: embedding.tolist() for input_hash, embedding in cur.fetchall()
         }
+
 
 def upsert_document(conn: psycopg.Connection, document: dict) -> UUID:
     """Insert a parsed document, its sections, and embedded chunks."""
