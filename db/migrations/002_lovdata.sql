@@ -91,3 +91,4 @@ COMMENT ON COLUMN public.chunks.embedding_text IS
     'Exact input sent to the embedding model. Authoritative provision content lives in sections.';
 COMMENT ON COLUMN public.chunks.embedding_input_hash IS
     'Lowercase SHA-256 of the UTF-8 embedding_text; reuse only with the same model configuration.';
+
