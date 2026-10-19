@@ -1,5 +1,6 @@
 import os
 from uuid import UUID
+from azure.identity import DefaultAzureCredential
 
 import psycopg
 from pgvector import Vector
@@ -8,10 +9,14 @@ from psycopg.types.json import Jsonb
 
 
 def create_connection() -> psycopg.Connection:
-    return psycopg.connect(
-        os.environ["DATABASE_URL"],
-        autocommit=True,
-    )
+    password = os.environ.get("PGPASSWORD")
+    if not password:
+        password = (
+            DefaultAzureCredential()
+            .get_token("https://ossrdbms-aad.database.windows.net/.default")
+            .token
+        )
+    return psycopg.connect(password=password, autocommit=True)
 
 
 def get_document_hashes(conn: psycopg.Connection) -> dict[tuple[str, str], str]:
