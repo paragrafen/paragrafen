@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Paragrafen.Core.Abstractions;
 using Paragrafen.Core.Contracts;
@@ -11,6 +10,7 @@ public class AskService(
     IAiModelService aiModelService,
     ICallLog callLog,
     ModelPrice modelPrice,
+    TimeProvider timeProvider,
     ILogger<AskService> logger
 ) : IAskService
 {
@@ -18,8 +18,8 @@ public class AskService(
 
     public async Task<AskResponse> AskAsync(AskRequest request, CancellationToken cancellationToken, Guid requestId)
     {
-        var started = Stopwatch.GetTimestamp();
-        var record = new CallRecord(requestId, request.ConversationId ?? Guid.CreateVersion7(), DateTime.UtcNow);
+        var started = timeProvider.GetTimestamp();
+        var record = new CallRecord(requestId, request.ConversationId ?? Guid.CreateVersion7(), timeProvider.GetUtcNow().UtcDateTime);
 
         try
         {
@@ -39,7 +39,7 @@ public class AskService(
         }
         finally
         {
-            record.Finish(Stopwatch.GetElapsedTime(started));
+            record.Finish(timeProvider.GetElapsedTime(started));
             await WriteCallLogAsync(record);
         }
     }
@@ -68,7 +68,7 @@ public class AskService(
 
     private async Task<ModelResult> CompleteAsync(string message, CallRecord record, CancellationToken cancellationToken)
     {
-        var started = Stopwatch.GetTimestamp();
+        var started = timeProvider.GetTimestamp();
         ModelResult? result = null;
         try
         {
@@ -77,7 +77,7 @@ public class AskService(
         }
         finally
         {
-            record.AddModelCall(result, Stopwatch.GetElapsedTime(started), modelPrice);
+            record.AddModelCall(result, timeProvider.GetElapsedTime(started), modelPrice);
         }
     }
 
@@ -85,7 +85,7 @@ public class AskService(
     {
         try
         {
-            using var timeout = new CancellationTokenSource(CallLogTimeout);
+            using var timeout = new CancellationTokenSource(CallLogTimeout, timeProvider);
             await callLog.WriteAsync(record, timeout.Token);
         }
         catch (Exception ex)

@@ -18,13 +18,19 @@ internal sealed class FakeCallLog : ICallLog
     public List<CallRecord> Written { get; } = [];
     public CancellationToken LastToken { get; private set; }
     public bool ThrowOnWrite { get; init; }
+    public bool Hang { get; init; }
+    public TaskCompletionSource WriteStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    public bool WriteCancelled { get; private set; }
 
-    public Task WriteAsync(CallRecord record, CancellationToken cancellationToken)
+    public async Task WriteAsync(CallRecord record, CancellationToken cancellationToken)
     {
         LastToken = cancellationToken;
+        cancellationToken.Register(() => WriteCancelled = true);
+        WriteStarted.TrySetResult();
         if (ThrowOnWrite)
             throw new InvalidOperationException("database is down");
+        if (Hang)
+            await Task.Delay(Timeout.Infinite, cancellationToken);
         Written.Add(record);
-        return Task.CompletedTask;
     }
 }

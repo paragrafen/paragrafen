@@ -58,6 +58,7 @@ builder.Services.AddSingleton(_ =>
 });
 
 builder.Services.AddSingleton<ICallLog, CallLog>();
+builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IAskService, AskService>();
 
 var app = builder.Build();

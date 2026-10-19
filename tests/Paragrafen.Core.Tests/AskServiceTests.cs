@@ -1,4 +1,6 @@
-using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Testing;
+using Microsoft.Extensions.Time.Testing;
 using Paragrafen.Core.Contracts;
 using Paragrafen.Core.Exceptions;
 using Paragrafen.Core.Models;
@@ -12,8 +14,18 @@ public class AskServiceTests
     private static readonly ModelPrice Price = new(10m, 2.5m, 40m);
     private static readonly ModelResult Usage = new("Du må være 18 år.", "gpt-6-luna-2026-08-01", 1000, 400, 500, 300);
 
-    private static AskService CreateService(FakeAiModelService model, FakeCallLog? callLog = null) =>
-        new(model, callLog ?? new FakeCallLog(), Price, NullLogger<AskService>.Instance);
+    private readonly FakeTimeProvider _time = new();
+    private readonly FakeLogger<AskService> _logger = new();
+
+    private AskService CreateService(FakeAiModelService model, FakeCallLog? callLog = null) =>
+        new(model, callLog ?? new FakeCallLog(), Price, _time, _logger);
+
+    private FakeAiModelService TakingTime(TimeSpan duration, Func<ModelResult> complete) =>
+        new(_ =>
+        {
+            _time.Advance(duration);
+            return complete();
+        });
 
     [Fact]
     public async Task Model_text_is_returned_as_the_answer()
@@ -58,7 +70,46 @@ public class AskServiceTests
         Assert.Equal(500, record.OutputTokens);
         Assert.Equal(300, record.ReasoningTokens);
         Assert.Equal(0.027m, record.CostNok);
-        Assert.True(record.LatencyMs >= record.LlmLatencyMs);
+    }
+
+    [Fact]
+    public async Task Record_uses_the_time_the_request_started()
+    {
+        var callLog = new FakeCallLog();
+        var started = _time.GetUtcNow().UtcDateTime;
+
+        await CreateService(TakingTime(TimeSpan.FromSeconds(2), () => Usage), callLog)
+            .AskAsync(new AskRequest(Question), CancellationToken.None, Guid.CreateVersion7());
+
+        Assert.Equal(started, Assert.Single(callLog.Written).CreatedAt);
+    }
+
+    [Fact]
+    public async Task Latency_covers_the_whole_request_and_the_model_call_separately()
+    {
+        var callLog = new FakeCallLog();
+
+        await CreateService(TakingTime(TimeSpan.FromMilliseconds(300), () => Usage), callLog)
+            .AskAsync(new AskRequest(Question), CancellationToken.None, Guid.CreateVersion7());
+
+        var record = Assert.Single(callLog.Written);
+        Assert.Equal(300, record.LlmLatencyMs);
+        Assert.Equal(300, record.LatencyMs);
+    }
+
+    [Fact]
+    public async Task Failed_model_call_still_counts_its_latency()
+    {
+        var callLog = new FakeCallLog();
+        var model = TakingTime(TimeSpan.FromMilliseconds(200), () => throw new BadGatewayException("model_unavailable", "down"));
+
+        await Assert.ThrowsAsync<BadGatewayException>(() => CreateService(model, callLog)
+            .AskAsync(new AskRequest(Question), CancellationToken.None, Guid.CreateVersion7()));
+
+        var record = Assert.Single(callLog.Written);
+        Assert.Equal("model_unavailable", record.FailureReason);
+        Assert.Equal(1, record.Attempts);
+        Assert.Equal(200, record.LlmLatencyMs);
     }
 
     [Fact]
@@ -87,6 +138,19 @@ public class AskServiceTests
         Assert.Equal(0, record.Attempts);
         Assert.Null(record.Model);
         Assert.Equal(0m, record.CostNok);
+    }
+
+    [Fact]
+    public async Task Too_long_question_is_recorded_without_a_model_call()
+    {
+        var callLog = new FakeCallLog();
+
+        await Assert.ThrowsAsync<BadRequestException>(() => CreateService(FakeAiModelService.Returning(Usage), callLog)
+            .AskAsync(new AskRequest(new string('a', 501)), CancellationToken.None, Guid.CreateVersion7()));
+
+        var record = Assert.Single(callLog.Written);
+        Assert.Equal("question_too_long", record.FailureReason);
+        Assert.Equal(0, record.Attempts);
     }
 
     [Fact]
@@ -163,5 +227,39 @@ public class AskServiceTests
 
         Assert.Equal(AnswerStatus.Answered, response.Status);
         Assert.Equal("Du må være 18 år.", response.Answer);
+    }
+
+    [Fact]
+    public async Task Failing_call_log_is_logged_as_an_error_with_the_request_id()
+    {
+        var requestId = Guid.CreateVersion7();
+
+        await CreateService(FakeAiModelService.Returning(Usage), new FakeCallLog { ThrowOnWrite = true })
+            .AskAsync(new AskRequest(Question), CancellationToken.None, requestId);
+
+        var log = _logger.LatestRecord;
+        Assert.Equal(LogLevel.Error, log.Level);
+        Assert.Contains(requestId.ToString(), log.Message);
+        Assert.IsType<InvalidOperationException>(log.Exception);
+    }
+
+    [Fact]
+    public async Task Hanging_call_log_is_cut_off_after_five_seconds()
+    {
+        var callLog = new FakeCallLog { Hang = true };
+
+        var ask = CreateService(FakeAiModelService.Returning(Usage), callLog)
+            .AskAsync(new AskRequest(Question), CancellationToken.None, Guid.CreateVersion7());
+        await callLog.WriteStarted.Task;
+
+        _time.Advance(TimeSpan.FromMilliseconds(4999));
+        Assert.False(callLog.WriteCancelled);
+
+        _time.Advance(TimeSpan.FromMilliseconds(1));
+        Assert.True(callLog.WriteCancelled);
+        var response = await ask;
+
+        Assert.Equal(AnswerStatus.Answered, response.Status);
+        Assert.Equal(LogLevel.Error, _logger.LatestRecord.Level);
     }
 }
