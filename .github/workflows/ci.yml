@@ -23,6 +23,8 @@ jobs:
       - run: dotnet restore
       - run: dotnet format --verify-no-changes --no-restore
       - run: dotnet build --no-restore -warnaserror
+      - name: Check contracts/openapi.json matches the API
+        run: git diff --exit-code contracts/openapi.json
       - run: dotnet test --no-build
       - run: docker build -f src/Paragrafen.Api/Dockerfile -t paragrafen-api .
 
@@ -58,6 +60,10 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
       - run: npm ci
+      - name: Check generated types match contracts/openapi.json
+        run: |
+          npm run gen:types
+          git diff --exit-code src/types.ts
       - run: npm run build
       - run: docker build -t paragrafen-web .
 

@@ -9,12 +9,25 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql
-      - ./db/migrations:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U paragrafen -d paragrafen"]
       interval: 5s
       timeout: 3s
       retries: 10
+
+  migrate:
+    image: pgvector/pgvector:pg18
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGHOST: db
+      PGUSER: paragrafen
+      PGPASSWORD: paragrafen
+      PGDATABASE: paragrafen
+    volumes:
+      - ./db:/db:ro
+    command: /db/migrate.sh
 
 volumes:
   pgdata:

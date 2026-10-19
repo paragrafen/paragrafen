@@ -1,9 +1,24 @@
 import { useState } from "react";
-import type { AskResponse } from "@/types";
+import type { AskResponse, ErrorResponse } from "@/types";
+
+export interface AskError {
+  code: string;
+  requestId?: string;
+}
+
+async function readError(res: Response): Promise<AskError> {
+  const body: Partial<ErrorResponse> | null = await res
+    .json()
+    .catch(() => null);
+  return {
+    code: body?.error?.code ?? "internal_error",
+    requestId: body?.request_id,
+  };
+}
 
 export function useAsk() {
   const [data, setData] = useState<AskResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<AskError | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function ask(question: string) {
@@ -16,10 +31,13 @@ export function useAsk() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ question }),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        setError(await readError(res));
+        return;
+      }
       setData(await res.json());
     } catch {
-      setError("Noe gikk galt. Prøv igjen.");
+      setError({ code: "internal_error" });
     } finally {
       setLoading(false);
     }

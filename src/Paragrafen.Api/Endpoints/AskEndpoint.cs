@@ -1,36 +1,32 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Paragrafen.Core.Contracts;
-using Paragrafen.Core.Exceptions;
+using Paragrafen.Core.Abstractions;
 
 namespace Paragrafen.Api.Endpoints;
 
 public static class AskEndpoints
+
 {
     public static IEndpointRouteBuilder MapAskEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapPost("/ask", Ask).ProducesProblem(400);
+        app.MapPost("/ask", Ask)
+            .Produces<ErrorResponse>(StatusCodes.Status400BadRequest)
+            .Produces<ErrorResponse>(StatusCodes.Status500InternalServerError)
+            .Produces<ErrorResponse>(StatusCodes.Status502BadGateway)
+            .Produces<ErrorResponse>(StatusCodes.Status503ServiceUnavailable);
 
         return app;
     }
 
-    private static Ok<AskResponse> Ask(AskRequest request)
+    private static async Task<Ok<AskResponse>> Ask(
+        AskRequest request,
+        IAskService askService,
+        CancellationToken cancellationToken,
+        HttpContext context
+        )
     {
-        if (string.IsNullOrWhiteSpace(request.Question))
-            throw new BadRequestException("empty_question", "Question must not be empty.");
-        if (request.Question.Length > 500)
-            throw new BadRequestException("question_too_long", "Question must be at most 500 characters.");
-
-        var requestId = Guid.CreateVersion7();
-        var conversationId = request.ConversationId ?? Guid.CreateVersion7();
-
-        var response = new AskResponse(
-            requestId,
-            conversationId,
-            AnswerStatus.Answered,
-            request.Question,
-            new List<Source>(),
-            DateTime.UtcNow
-            );
+        var requestId = context.GetRequestId();
+        var response = await askService.AskAsync(request, cancellationToken, requestId);
 
         return TypedResults.Ok(response);
     }
