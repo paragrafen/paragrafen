@@ -28,6 +28,15 @@ public sealed class PostgresFixture : IAsyncLifetime
         DataSource = ParagrafenDataSource.Create(ConnectionString, new NoCredential());
     }
 
+    public async Task<Dictionary<string, object>> ReadCallAsync(Guid requestId)
+    {
+        await using var command = DataSource.CreateCommand("SELECT * FROM calls WHERE request_id = $1");
+        command.Parameters.Add(new NpgsqlParameter { Value = requestId });
+        await using var reader = await command.ExecuteReaderAsync();
+        Assert.True(await reader.ReadAsync(), $"No calls row for {requestId}");
+        return Enumerable.Range(0, reader.FieldCount).ToDictionary(reader.GetName, reader.GetValue);
+    }
+
     public async Task DisposeAsync()
     {
         await DataSource.DisposeAsync();

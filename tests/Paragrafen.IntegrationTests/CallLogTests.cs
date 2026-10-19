@@ -1,4 +1,3 @@
-using Npgsql;
 using Paragrafen.Core.Contracts;
 using Paragrafen.Core.Models;
 using Paragrafen.Data.Calls;
@@ -23,7 +22,7 @@ public class CallLogTests(PostgresFixture db)
 
         await new CallLog(db.DataSource).WriteAsync(record, CancellationToken.None);
 
-        var row = await ReadRowAsync(record.RequestId);
+        var row = await db.ReadCallAsync(record.RequestId);
         Assert.Equal(CreatedAt, ((DateTime)row["created_at"]).ToUniversalTime());
         Assert.Equal(record.ConversationId, row["conversation_id"]);
         Assert.Equal("answered", row["status"]);
@@ -48,7 +47,7 @@ public class CallLogTests(PostgresFixture db)
 
         await new CallLog(db.DataSource).WriteAsync(record, CancellationToken.None);
 
-        var row = await ReadRowAsync(record.RequestId);
+        var row = await db.ReadCallAsync(record.RequestId);
         Assert.Equal("error", row["status"]);
         Assert.Equal("empty_question", row["failure_reason"]);
         Assert.Equal((short)0, row["attempts"]);
@@ -70,15 +69,6 @@ public class CallLogTests(PostgresFixture db)
 
         await new CallLog(db.DataSource).WriteAsync(record, CancellationToken.None);
 
-        Assert.Equal(record.Status, (await ReadRowAsync(record.RequestId))["status"]);
-    }
-
-    private async Task<Dictionary<string, object>> ReadRowAsync(Guid requestId)
-    {
-        await using var command = db.DataSource.CreateCommand("SELECT * FROM calls WHERE request_id = $1");
-        command.Parameters.Add(new NpgsqlParameter { Value = requestId });
-        await using var reader = await command.ExecuteReaderAsync();
-        Assert.True(await reader.ReadAsync(), $"No calls row for {requestId}");
-        return Enumerable.Range(0, reader.FieldCount).ToDictionary(reader.GetName, reader.GetValue);
+        Assert.Equal(record.Status, (await db.ReadCallAsync(record.RequestId))["status"]);
     }
 }
