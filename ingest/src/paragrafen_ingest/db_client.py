@@ -1,8 +1,8 @@
 import os
 from uuid import UUID
-from azure.identity import DefaultAzureCredential
 
 import psycopg
+from azure.identity import DefaultAzureCredential
 from pgvector import Vector
 from pgvector.psycopg import register_vector
 from psycopg.types.json import Jsonb
