@@ -4,6 +4,138 @@
  */
 
 export interface paths {
+    "/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["RegisterRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AuthResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["LoginRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AuthResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -139,6 +271,12 @@ export interface components {
             /** Format: date-time */
             asked_at: string;
         };
+        AuthResponse: {
+            token: string;
+            /** Format: date-time */
+            expires_at: string;
+            user: components["schemas"]["UserResponse"];
+        };
         ErrorDetail: {
             code: string;
             message: string;
@@ -148,6 +286,15 @@ export interface components {
             request_id: string;
             error: components["schemas"]["ErrorDetail"];
         };
+        LoginRequest: {
+            email: string;
+            password: string;
+        };
+        RegisterRequest: {
+            email: string;
+            user_name: string;
+            password: string;
+        };
         Source: {
             chunk_id: string;
             law: string;
@@ -155,6 +302,13 @@ export interface components {
             section: string;
             /** Format: uri */
             url: string;
+        };
+        UserResponse: {
+            /** Format: uuid */
+            id: string;
+            email: string;
+            user_name: string;
+            roles: string[];
         };
     };
     responses: never;
@@ -167,8 +321,12 @@ export type AnonymousTypeOfstring = components['schemas']['AnonymousTypeOfstring
 export type AnswerStatus = components['schemas']['AnswerStatus'];
 export type AskRequest = components['schemas']['AskRequest'];
 export type AskResponse = components['schemas']['AskResponse'];
+export type AuthResponse = components['schemas']['AuthResponse'];
 export type ErrorDetail = components['schemas']['ErrorDetail'];
 export type ErrorResponse = components['schemas']['ErrorResponse'];
+export type LoginRequest = components['schemas']['LoginRequest'];
+export type RegisterRequest = components['schemas']['RegisterRequest'];
 export type Source = components['schemas']['Source'];
+export type UserResponse = components['schemas']['UserResponse'];
 export type $defs = Record<string, never>;
 export type operations = Record<string, never>;
