@@ -1,4 +1,5 @@
 import hashlib
+import re
 from pathlib import Path
 
 from bs4 import BeautifulSoup, Tag
@@ -15,7 +16,8 @@ def parse_document(source_path: Path) -> dict:
 
     # extracts and strips all text in a given field
     def text(node: Tag | None) -> str:
-        return " ".join(node.get_text(" ", strip=True).split()) if node else ""
+        value = " ".join(node.get_text(" ", strip=True).split()) if node else ""
+        return re.sub(r" +([.,;:])", r"\1", value)
 
     body = soup.select_one("main.documentBody")
     info = soup.select_one("dl.data-document-key-info")

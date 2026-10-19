@@ -28,29 +28,30 @@ def get_document_hashes(conn: psycopg.Connection) -> dict[tuple[str, str], str]:
             for dokid, source_variant, source_hash in cur.fetchall()
         }
 
+def get_embeddings_by_hash(conn: psycopg.Connection, hashes: list[str],
+) -> dict[str, list[float]]:
+    """Gets all the embeddings of the passed hashes list in the db"""
+    if not hashes:
+        return {}
 
-def get_chunk_hashes(
-    conn: psycopg.Connection, dokid: str, source_variant: str
-) -> list[tuple[int, int, str]]:
-    """Gets the hashes of all the chunks in a document"""
+    register_vector(conn)
+
     with conn.cursor() as cur:
         cur.execute(
             """
-            SELECT
-                s.ordinal,
-                c.ordinal,
-                c.embedding_input_hash
-            FROM public.chunks AS c
-            JOIN public.sections AS s ON s.id = c.section_id
-            JOIN public.documents AS d ON d.id = s.document_id
-            WHERE d.metadata->>'dokid' = %s
-            AND d.source_variant = %s
-            ORDER BY s.ordinal, c.ordinal;
+            SELECT DISTINCT ON (embedding_input_hash)
+                embedding_input_hash, embedding
+            FROM public.chunks
+            WHERE embedding_input_hash = ANY(%s)
+            ORDER BY embedding_input_hash, id;
             """,
-            (dokid, source_variant),
+            (hashes,),
         )
-        return cur.fetchall()
 
+        return {
+            input_hash: embedding.tolist()
+            for input_hash, embedding in cur.fetchall()
+        }
 
 def upsert_document(conn: psycopg.Connection, document: dict) -> UUID:
     """Insert a parsed document, its sections, and embedded chunks."""

@@ -12,7 +12,7 @@ import psycopg
 from paragrafen_ingest.db_client import (
     create_connection,
     delete_document,
-    get_chunk_hashes,
+    get_embeddings_by_hash,
     get_document_hashes,
     upsert_document,
 )
@@ -20,8 +20,8 @@ from paragrafen_ingest.embedder import build_embedding_text, embed_text
 from paragrafen_ingest.parser import parse_document
 
 output_dir = Path(__file__).resolve().parents[2] / "data"
-TOKEN_BUDGET = 140_000  # maximum tpr
-REQUEST_BUDGET = 900  # maximum rpr
+TOKEN_BUDGET = 140_000  # maximum tpm
+REQUEST_BUDGET = 900  # maximum rpm
 
 
 logger = logging.getLogger(__name__)
@@ -63,6 +63,9 @@ def ingest_data(dataset: str) -> None:
 
     logger.info("Finished processing documents successfully")
 
+    if not docs:
+        raise RuntimeError(f"No documents found in {extracted_file_path}")
+
     with create_connection() as conn:
         stored_file_hashes = get_document_hashes(conn)
 
@@ -100,31 +103,28 @@ def ingest_data(dataset: str) -> None:
 
 # Finds all chunks text that changed in a document
 def find_changed_chunks(conn: psycopg.Connection, document: dict) -> list[dict]:
-    # Key: (section ordinal, chunk ordinal)
-    stored_hashes = {
-        (section_ordinal, chunk_ordinal): chunk_hash
-        for section_ordinal, chunk_ordinal, chunk_hash in get_chunk_hashes(
-            conn, document["dokid"], document["sourceVariant"]
-        )
-    }
+    chunks = [
+        chunk
+        for section in document["sections"]
+        for chunk in section.get("chunks", [])
+    ]
+
+    hashes = list({chunk["embeddingInputHash"] for chunk in chunks})
+    stored_embeddings = get_embeddings_by_hash(conn, hashes)
 
     changed_chunks = []
 
-    for section in document["sections"]:
-        for chunk in section.get("chunks", []):
-            key = (section["ordinal"], chunk["ordinal"])
-            previous_hash = stored_hashes.get(key)
+    # In the case a new "ledd" is added make sure to update the ordinals 
+    # accordigly without re-embedding the whole text again. 
+    # If no embedding is found the chunk text gets embedded in the ingest function. 
+    for chunk in chunks:
+        embedding = stored_embeddings.get(chunk["embeddingInputHash"])
 
-            if previous_hash != chunk["embeddingInputHash"]:
-                changed_chunks.append(chunk)
+        if embedding is not None:
+            chunk["embedding"] = embedding
+        else:
+            changed_chunks.append(chunk)
 
-                logger.info(
-                    "%s: section %s, chunk %s is %s",
-                    document["dokid"],
-                    section["sectionRef"],
-                    chunk["ordinal"],
-                    "new" if previous_hash is None else "changed",
-                )
     return changed_chunks
 
 
