@@ -72,9 +72,13 @@ jobs:
 
       - name: Deploy apps
         id: apps
+        env:
+          JWT_SIGNING_KEY: ${{ secrets.JWT_SIGNING_KEY }}
         run: |
+          : "${JWT_SIGNING_KEY:?The JWT_SIGNING_KEY GitHub secret is not set}"
           url=$(az deployment group create -g "$RESOURCE_GROUP" -n "apps-$GITHUB_SHA" -f infra/apps.bicep \
             -p webImage="$IMAGE_PREFIX-web:$GITHUB_SHA" apiImage="$IMAGE_PREFIX-api:$GITHUB_SHA" ingestImage="$IMAGE_PREFIX-ingest:$GITHUB_SHA" \
+              jwtSigningKey="$JWT_SIGNING_KEY" \
             --query properties.outputs.webUrl.value -o tsv)
           echo "web_url=$url" >> "$GITHUB_OUTPUT"
 
