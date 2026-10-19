@@ -5,6 +5,7 @@ using Paragrafen.Api.ExceptionHandlers;
 using Azure.AI.OpenAI;
 using Azure.Identity;
 using Paragrafen.Core.Abstractions;
+using Paragrafen.Core.Prompts;
 using Paragrafen.Core.Services;
 using Paragrafen.Data.Ai;
 
@@ -40,6 +41,7 @@ builder.Services.AddSingleton(_ =>
 });
 
 builder.Services.AddSingleton<IAiModelService, AiModelService>();
+builder.Services.AddSingleton(AskPrompt.Load("v0"));
 builder.Services.AddScoped<IAskService, AskService>();
 
 var app = builder.Build();
