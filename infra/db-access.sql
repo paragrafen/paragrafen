@@ -20,3 +20,13 @@ GRANT USAGE ON SCHEMA public TO "id-paragrafen-api", "id-paragrafen-ingest";
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON chunks TO "id-paragrafen-ingest";
 GRANT SELECT ON chunks TO "id-paragrafen-api";
+
+
+-- Identity (004_identity.sql). Only the api: these tables hold users' emails and password hashes.
+GRANT SELECT, INSERT, UPDATE, DELETE ON
+  "AspNetUsers", "AspNetRoles", "AspNetUserRoles", "AspNetUserClaims",
+  "AspNetUserLogins", "AspNetUserTokens", "AspNetRoleClaims"
+  TO "id-paragrafen-api";
+
+-- The claims tables have generated ids; inserting a row needs the sequence behind them.
+GRANT USAGE ON SEQUENCE "AspNetUserClaims_Id_seq", "AspNetRoleClaims_Id_seq" TO "id-paragrafen-api";
