@@ -1,6 +1,7 @@
 namespace Paragrafen.Core.Prompts;
 
-public class AskPrompt {
+public class AskPrompt
+{
 
     private const string SystemMarker = "=== SYSTEM ===";
     private const string UserMarker = "=== USER ===";
@@ -10,13 +11,15 @@ public class AskPrompt {
 
     public string Version { get; } // the prompt version
 
-    private AskPrompt(string version, string system, string userTemplate) {
+    private AskPrompt(string version, string system, string userTemplate)
+    {
         Version = version;
         _system = system;
         _userTemplate = userTemplate;
     }
 
-    public static AskPrompt Load(string version = "v0") {
+    public static AskPrompt Load(string version = "v0")
+    {
         var name = $"Paragrafen.Core.Prompts.prompt_{version}.md";
         using var stream = typeof(AskPrompt).Assembly.GetManifestResourceStream(name)
             ?? throw new InvalidOperationException($"Prompt resource '{name}' not found.");

@@ -25,7 +25,8 @@ public class AskService(IAiModelService aiModelService, AskPrompt prompt) : IAsk
 
         string aiModelAnswer = await aiModelService.CompleteAsync(system, user, cancellationToken);
 
-        var status = ReadTag(aiModelAnswer, "status") switch {
+        var status = ReadTag(aiModelAnswer, "status") switch
+        {
             "ANSWERED" => AnswerStatus.Answered,
             "PARTIAL" => AnswerStatus.Answered, // note: AnswerStatus has no Partial yet
             "NOT_FOUND" => AnswerStatus.NotFound,
@@ -46,7 +47,8 @@ public class AskService(IAiModelService aiModelService, AskPrompt prompt) : IAsk
         );
     }
 
-    private static string? ReadTag(string text, string tag) {
+    private static string? ReadTag(string text, string tag)
+    {
         var match = Regex.Match(text, $"<{tag}>(.*?)</{tag}>", RegexOptions.Singleline);
         return match.Success ? match.Groups[1].Value.Trim() : null;
     }
