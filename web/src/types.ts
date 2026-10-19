@@ -76,7 +76,34 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Bad Gateway */
+                502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Service Unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
             };
@@ -112,13 +139,14 @@ export interface components {
             /** Format: date-time */
             asked_at: string;
         };
-        ProblemDetails: {
-            type?: null | string;
-            title?: null | string;
-            /** Format: int32 */
-            status?: null | number | string;
-            detail?: null | string;
-            instance?: null | string;
+        ErrorDetail: {
+            code: string;
+            message: string;
+        };
+        ErrorResponse: {
+            /** Format: uuid */
+            request_id: string;
+            error: components["schemas"]["ErrorDetail"];
         };
         Source: {
             chunk_id: string;
@@ -139,7 +167,8 @@ export type AnonymousTypeOfstring = components['schemas']['AnonymousTypeOfstring
 export type AnswerStatus = components['schemas']['AnswerStatus'];
 export type AskRequest = components['schemas']['AskRequest'];
 export type AskResponse = components['schemas']['AskResponse'];
-export type ProblemDetails = components['schemas']['ProblemDetails'];
+export type ErrorDetail = components['schemas']['ErrorDetail'];
+export type ErrorResponse = components['schemas']['ErrorResponse'];
 export type Source = components['schemas']['Source'];
 export type $defs = Record<string, never>;
 export type operations = Record<string, never>;
