@@ -85,7 +85,15 @@ jobs:
       - name: Smoke test
         env:
           WEB_URL: ${{ steps.apps.outputs.web_url }}
+          PGHOST: ${{ env.POSTGRES_SERVER }}.postgres.database.azure.com
+          PGDATABASE: paragrafen
+          PGUSER: id-paragrafen-github
+          PGSSLMODE: require
         run: |
           curl -fsS --retry 6 --retry-all-errors --retry-delay 10 -o /dev/null "$WEB_URL/"
-          curl -fsS --retry 6 --retry-all-errors --retry-delay 10 -X POST "$WEB_URL/api/ask" \
-            -H "content-type: application/json" -d '{"question":"Hva er oppsigelsestiden?"}' | jq -e '.status'
+          request_id=$(curl -fsS --retry 6 --retry-all-errors --retry-delay 10 -X POST "$WEB_URL/api/ask" \
+            -H "content-type: application/json" -d '{"question":"Hva er oppsigelsestiden?"}' | jq -er 'select(.status) | .request_id')
+          PGPASSWORD=$(az account get-access-token --resource-type oss-rdbms --query accessToken -o tsv)
+          export PGPASSWORD
+          test "$(psql -tAc "SELECT count(*) FROM calls WHERE request_id = '$request_id'")" = 1 \
+            || { echo "::error::No calls row for request $request_id. Check the api logs for 'Could not write call log'."; exit 1; }

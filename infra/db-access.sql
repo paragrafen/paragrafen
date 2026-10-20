@@ -24,6 +24,8 @@ GRANT SELECT, INSERT, UPDATE, DELETE
 GRANT SELECT ON public.documents, public.sections, public.chunks
     TO "id-paragrafen-api";
 
+GRANT INSERT ON public.calls TO "id-paragrafen-api";
+
 
 -- Identity (004_identity.sql). Only the api: these tables hold users' emails and password hashes.
 GRANT SELECT, INSERT, UPDATE, DELETE ON
