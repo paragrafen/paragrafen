@@ -17,6 +17,10 @@ export function useAsk() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ question }),
       });
+      if (res.status === 401) {
+        window.location.assign("/login");
+        return;
+      }
       if (!res.ok) {
         setError(await readError(res));
         return;
