@@ -1,2 +1,5 @@
+from paragrafen_ingest.ingest import ingest_data
+
+
 def main() -> None:
-    print("Hello from paragrafen-ingest!")
+    ingest_data("lov")
