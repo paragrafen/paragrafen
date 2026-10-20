@@ -158,6 +158,9 @@ resource ingest 'Microsoft.App/jobs@2026-07-01' = {
       replicaTimeout: 1800
       replicaRetryLimit: 1
       registries: [{ server: registry.properties.loginServer, identity: ingestId.id }]
+      secrets: [
+        { name: 'embedding-api', value: foundry.listKeys().key1 }
+      ]
     }
     template: {
       containers: [
@@ -171,6 +174,11 @@ resource ingest 'Microsoft.App/jobs@2026-07-01' = {
             { name: 'PGUSER', value: ingestId.name }
             { name: 'PGSSLMODE', value: 'require' }
             { name: 'AZURE_CLIENT_ID', value: ingestId.properties.clientId }
+            { name: 'EMBEDDING_API', secretRef: 'embedding-api' }
+            {
+              name: 'EMBEDDING_URL'
+              value: uri(foundry.properties.endpoint, 'openai/deployments/text-embedding-3-small/embeddings?api-version=2024-02-01')
+            }
           ]
         }
       ]

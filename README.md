@@ -19,3 +19,8 @@ dotnet user-secrets set "Jwt:IssuerSigningKey" "<any 32+ characters>" --project 
 dotnet run --project src/Paragrafen.Api
 cd web && npm run dev
 ```
+
+## Update lovdata and ingestion
+```bash
+uv run --project ingest paragrafen-ingest
+```
