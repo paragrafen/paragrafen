@@ -4,6 +4,10 @@ param webImage string
 param apiImage string
 param ingestImage string
 
+@secure()
+@description('Signs the api\'s login tokens. Comes from the JWT_SIGNING_KEY GitHub secret.')
+param jwtSigningKey string
+
 @description('0 lets web and api scale to zero when idle, with a cold start of a few seconds. Use 1 in demo week.')
 param minReplicas int = 0
 
@@ -71,6 +75,7 @@ resource api 'Microsoft.App/containerApps@2026-07-01' = {
         transport: 'http'
       }
       registries: [{ server: registry.properties.loginServer, identity: apiId.id }]
+      secrets: [{ name: 'jwt-signing-key', value: jwtSigningKey }]
     }
     template: {
       containers: [
@@ -85,6 +90,7 @@ resource api 'Microsoft.App/containerApps@2026-07-01' = {
             }
             { name: 'Foundry__Endpoint', value: foundry.properties.endpoint }
             { name: 'AZURE_CLIENT_ID', value: apiId.properties.clientId }
+            { name: 'Jwt__IssuerSigningKey', secretRef: 'jwt-signing-key' }
           ]
           probes: [
             { type: 'Readiness', httpGet: { path: '/health', port: 8080 } }

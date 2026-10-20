@@ -15,6 +15,7 @@ web/             Next.js frontend
 
 ```bash
 docker compose up -d
+dotnet user-secrets set "Jwt:IssuerSigningKey" "<any 32+ characters>" --project src/Paragrafen.Api   # once per machine
 dotnet run --project src/Paragrafen.Api
 cd web && npm run dev
 ```
