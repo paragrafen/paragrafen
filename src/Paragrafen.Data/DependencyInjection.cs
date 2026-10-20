@@ -10,8 +10,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 
 using Paragrafen.Core.Abstractions;
+using Paragrafen.Core.Models;
 using Paragrafen.Core.Options;
 using Paragrafen.Data.Ai;
+using Paragrafen.Data.Calls;
 using Paragrafen.Data.Identity;
 using Paragrafen.Data.Persistence;
 
@@ -33,22 +35,9 @@ public static class DependencyInjection
             );
         }
 
-        var dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
-        if (string.IsNullOrEmpty(dataSourceBuilder.ConnectionStringBuilder.Password))
-        {
-            // Azure: no password, log in with the app's managed identity instead.
-            var credential = new DefaultAzureCredential();
-            dataSourceBuilder.UsePeriodicPasswordProvider(
-                async (_, cancellationToken) =>
-                    (await credential.GetTokenAsync(
-                        new TokenRequestContext(["https://ossrdbms-aad.database.windows.net/.default"]),
-                        cancellationToken)).Token,
-                TimeSpan.FromMinutes(55),
-                TimeSpan.FromSeconds(5));
-        }
-        var dataSource = dataSourceBuilder.Build();
-
-        services.AddDbContext<ParagrafenDbContext>(options => options.UseNpgsql(dataSource));
+        services.AddSingleton(_ => ParagrafenDataSource.Create(connectionString, new DefaultAzureCredential()));
+        services.AddDbContext<ParagrafenDbContext>((sp, options) =>
+            options.UseNpgsql(sp.GetRequiredService<NpgsqlDataSource>()));
 
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
 
@@ -86,6 +75,17 @@ public static class DependencyInjection
             return client.GetChatClient(chatDeployment);
         });
         services.AddSingleton<IAiModelService, AiModelService>();
+
+        services.AddSingleton(_ =>
+        {
+            var deployment = configuration["Foundry:ChatClient"]
+                             ?? throw new InvalidOperationException("Foundry:ChatClient is not configured.");
+            return configuration.GetSection($"Foundry:Prices:{deployment}").Get<ModelPrice>()
+                   ?? throw new InvalidOperationException($"Foundry:Prices:{deployment} is not configured.");
+        });
+        services.AddSingleton<ICallLog, CallLog>();
+
+
 
         return services;
     }
