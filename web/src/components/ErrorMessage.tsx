@@ -1,4 +1,4 @@
-import type { AskError } from "@/hooks/useAsk";
+import type { ApiError } from "@/lib/errors";
 
 const ERROR_MESSAGES: Record<string, string> = {
   invalid_request:
@@ -10,13 +10,20 @@ const ERROR_MESSAGES: Record<string, string> = {
 
 const FALLBACK_MESSAGE = "Noe gikk galt. Prøv igjen.";
 
-export function ErrorMessage({ error }: { error: AskError }) {
+interface ErrorMessageProps {
+  error: ApiError;
+  messages?: Record<string, string>;
+}
+
+export function ErrorMessage({ error, messages }: ErrorMessageProps) {
   return (
     <div
       role="alert"
       className="rounded-lg border border-danger/30 bg-danger/10 p-4 text-danger"
     >
-      <p>{ERROR_MESSAGES[error.code] ?? FALLBACK_MESSAGE}</p>
+      <p>
+        {messages?.[error.code] ?? ERROR_MESSAGES[error.code] ?? FALLBACK_MESSAGE}
+      </p>
       {error.requestId && (
         <p className="mt-2 text-sm">
           Feil-ID: <span className="font-mono select-all">{error.requestId}</span>
