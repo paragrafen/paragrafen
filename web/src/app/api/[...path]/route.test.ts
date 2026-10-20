@@ -1,11 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { GET, POST } from "./route";
 
 const API_URL = "http://api.internal";
-
-async function loadRoute() {
-  vi.resetModules();
-  return import("./route");
-}
 
 function context(...path: string[]) {
   return { params: Promise.resolve({ path }) };
@@ -31,7 +27,6 @@ describe("POST", () => {
     const fetchMock = stubFetch(
       Response.json({ status: "answered" }, { status: 200 }),
     );
-    const { POST } = await loadRoute();
 
     const res = await POST(
       new Request("http://web/api/ask", {
@@ -54,7 +49,6 @@ describe("POST", () => {
 describe("GET", () => {
   it("forwards the path and query string to the API", async () => {
     const fetchMock = stubFetch(Response.json([{ chunk_id: "1" }]));
-    const { GET } = await loadRoute();
 
     const res = await GET(
       new Request("http://web/api/search?q=prøvetid&limit=5"),
@@ -70,7 +64,6 @@ describe("GET", () => {
 
   it("encodes each path segment", async () => {
     const fetchMock = stubFetch(new Response());
-    const { GET } = await loadRoute();
 
     await GET(new Request("http://web/api/a/b%3Fc"), context("a", "b?c"));
 
@@ -85,7 +78,6 @@ describe("responses from the API", () => {
       error: { code: "model_busy", message: "Try again shortly." },
     };
     stubFetch(Response.json(error, { status: 503 }));
-    const { GET } = await loadRoute();
 
     const res = await GET(new Request("http://web/api/ask"), context("ask"));
 
@@ -97,7 +89,6 @@ describe("responses from the API", () => {
     stubFetch(
       new Response("ok", { headers: { "content-type": "text/plain" } }),
     );
-    const { GET } = await loadRoute();
 
     const res = await GET(
       new Request("http://web/api/health"),
@@ -111,12 +102,72 @@ describe("responses from the API", () => {
 
 it("cancels the API call when the browser disconnects", async () => {
   const fetchMock = stubFetch(new Response());
-  const { POST } = await loadRoute();
   const req = new Request("http://web/api/ask", { method: "POST", body: "{}" });
 
   await POST(req, context("ask"));
 
   expect(fetchMock.mock.calls[0][1].signal).toBe(req.signal);
+});
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+describe("when the API is unreachable", () => {
+  it("returns an internal_error ErrorResponse and logs its request id", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const res = await POST(
+      new Request("http://web/api/ask", { method: "POST", body: "{}" }),
+      context("ask"),
+    );
+
+    expect(res.status).toBe(502);
+    const body = await res.json();
+    expect(body.error.code).toBe("internal_error");
+    expect(body.request_id).toMatch(UUID);
+    expect(body.error.message).not.toContain("fetch failed");
+    expect(log.mock.calls[0].join(" ")).toContain(body.request_id);
+  });
+
+  it("does not report a request the browser cancelled", async () => {
+    const controller = new AbortController();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(() => {
+        controller.abort();
+        return Promise.reject(new DOMException("aborted", "AbortError"));
+      }),
+    );
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await POST(
+      new Request("http://web/api/ask", {
+        method: "POST",
+        body: "{}",
+        signal: controller.signal,
+      }),
+      context("ask"),
+    );
+
+    expect(log).not.toHaveBeenCalled();
+  });
+});
+
+describe("without API_URL in production", () => {
+  it("returns an internal_error ErrorResponse", async () => {
+    vi.stubEnv("API_URL", "");
+    vi.stubEnv("NODE_ENV", "production");
+
+    const res = await POST(
+      new Request("http://web/api/ask", { method: "POST", body: "{}" }),
+      context("ask"),
+    );
+
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(body.error.code).toBe("internal_error");
+    expect(body.request_id).toMatch(UUID);
+  });
 });
 
 describe("without API_URL in development", () => {
@@ -127,7 +178,6 @@ describe("without API_URL in development", () => {
 
   it("answers POST /ask with a mock response", async () => {
     const fetchMock = stubFetch(new Response());
-    const { POST } = await loadRoute();
 
     const res = await POST(
       new Request("http://web/api/ask", { method: "POST", body: "{}" }),
@@ -137,5 +187,18 @@ describe("without API_URL in development", () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(res.status).toBe(200);
     expect((await res.json()).request_id).toBe("mock");
+  });
+
+  it("does not mock other paths", async () => {
+    const fetchMock = stubFetch(new Response());
+
+    const res = await GET(
+      new Request("http://web/api/results"),
+      context("results"),
+    );
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(res.status).toBe(500);
+    expect((await res.json()).error.code).toBe("internal_error");
   });
 });
