@@ -3,7 +3,7 @@ import type { AskResponse } from "@/types";
 const API_URL = process.env.API_URL;
 const USE_MOCK = !API_URL && process.env.NODE_ENV !== "production";
 
-export async function POST(
+async function proxy(
   req: Request,
   { params }: RouteContext<"/api/[...path]">,
 ) {
@@ -35,14 +35,23 @@ export async function POST(
     );
   }
 
-  const res = await fetch(`${API_URL}/${path.join("/")}`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: await req.text(),
+  const target = `${API_URL}/${path.map(encodeURIComponent).join("/")}`;
+  const { search } = new URL(req.url);
+  const hasBody = req.method !== "GET";
+
+  const res = await fetch(target + search, {
+    method: req.method,
+    headers: hasBody ? { "content-type": "application/json" } : undefined,
+    body: hasBody ? await req.text() : undefined,
+    signal: req.signal,
   });
+
+  const contentType = res.headers.get("content-type");
 
   return new Response(res.body, {
     status: res.status,
-    headers: { "content-type": "application/json" },
+    headers: contentType ? { "content-type": contentType } : undefined,
   });
 }
+
+export { proxy as GET, proxy as POST };
