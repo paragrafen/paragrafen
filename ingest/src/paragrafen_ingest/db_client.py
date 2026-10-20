@@ -57,7 +57,7 @@ def get_embeddings_by_hash(
         )
 
         return {
-            input_hash: embedding.tolist() for input_hash, embedding in cur.fetchall()
+            input_hash: embedding.to_list() for input_hash, embedding in cur.fetchall()
         }
 
 
