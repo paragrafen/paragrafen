@@ -64,6 +64,7 @@ jobs:
         run: |
           npm run gen:types
           git diff --exit-code src/types.ts
+      - run: npm test
       - run: npm run build
       - run: docker build -t paragrafen-web .
 
