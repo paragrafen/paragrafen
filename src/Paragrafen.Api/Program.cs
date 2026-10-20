@@ -5,8 +5,11 @@ using Paragrafen.Api.ExceptionHandlers;
 using Azure.AI.OpenAI;
 using Azure.Identity;
 using Paragrafen.Core.Abstractions;
+using Paragrafen.Core.Models;
 using Paragrafen.Core.Services;
+using Paragrafen.Data;
 using Paragrafen.Data.Ai;
+using Paragrafen.Data.Calls;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -40,6 +43,22 @@ builder.Services.AddSingleton(_ =>
 });
 
 builder.Services.AddSingleton<IAiModelService, AiModelService>();
+
+builder.Services.AddSingleton(_ => ParagrafenDataSource.Create(
+    builder.Configuration.GetConnectionString("Paragrafen")
+        ?? throw new InvalidOperationException("ConnectionStrings:Paragrafen is not configured."),
+    new DefaultAzureCredential()));
+
+builder.Services.AddSingleton(_ =>
+{
+    var deployment = builder.Configuration["Foundry:ChatClient"]
+                     ?? throw new InvalidOperationException("Foundry:ChatClient is not configured.");
+    return builder.Configuration.GetSection($"Foundry:Prices:{deployment}").Get<ModelPrice>()
+           ?? throw new InvalidOperationException($"Foundry:Prices:{deployment} is not configured.");
+});
+
+builder.Services.AddSingleton<ICallLog, CallLog>();
+builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IAskService, AskService>();
 
 var app = builder.Build();
