@@ -1,3 +1,5 @@
+import { type NextRequest, NextResponse } from "next/server";
+import { SESSION_COOKIE } from "@/lib/session";
 import type { ErrorResponse } from "@/types";
 
 export function errorResponse(status: number, message: string, cause?: unknown) {
@@ -12,7 +14,7 @@ export function errorResponse(status: number, message: string, cause?: unknown) 
   );
 }
 
-export async function callApi(req: Request, path: string[]) {
+export async function callApi(req: NextRequest, path: string[]) {
   const apiUrl = process.env.API_URL;
   if (!apiUrl) {
     return errorResponse(500, "API_URL is not set");
@@ -21,12 +23,17 @@ export async function callApi(req: Request, path: string[]) {
   const target = `${apiUrl}/${path.map(encodeURIComponent).join("/")}`;
   const { search } = new URL(req.url);
   const hasBody = req.method !== "GET";
+  const token = req.cookies.get(SESSION_COOKIE)?.value;
+
+  const headers = new Headers();
+  if (hasBody) headers.set("content-type", "application/json");
+  if (token) headers.set("authorization", `Bearer ${token}`);
 
   let res: Response;
   try {
     res = await fetch(target + search, {
       method: req.method,
-      headers: hasBody ? { "content-type": "application/json" } : undefined,
+      headers,
       body: hasBody ? await req.text() : undefined,
       signal: req.signal,
     });
@@ -39,8 +46,12 @@ export async function callApi(req: Request, path: string[]) {
 
   const contentType = res.headers.get("content-type");
 
-  return new Response(res.body, {
+  const response = new NextResponse(res.body, {
     status: res.status,
     headers: contentType ? { "content-type": contentType } : undefined,
   });
+  if (res.status === 401) {
+    response.cookies.delete(SESSION_COOKIE);
+  }
+  return response;
 }

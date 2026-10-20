@@ -1,3 +1,4 @@
+import type { NextRequest } from "next/server";
 import { callApi } from "@/lib/api";
 import type { AskResponse } from "@/types";
 
@@ -21,7 +22,7 @@ function mockAnswer() {
 }
 
 async function proxy(
-  req: Request,
+  req: NextRequest,
   { params }: RouteContext<"/api/[...path]">,
 ) {
   const { path } = await params;
