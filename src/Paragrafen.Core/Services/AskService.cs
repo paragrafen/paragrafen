@@ -26,7 +26,7 @@ public class AskService(IAiModelService aiModelService, AskPrompt prompt, ILogge
 
         string aiModelAnswer = await aiModelService.CompleteAsync(system, user, cancellationToken);
 
-        var status = ReadTag(aiModelAnswer, "status") switch
+        var status = ReadTag(aiModelAnswer, "status")?.ToUpperInvariant() switch
         {
             "ANSWERED" => AnswerStatus.Answered,
             "PARTIAL" => AnswerStatus.Answered, // note: AnswerStatus has no Partial yet
