@@ -1,6 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { SESSION_COOKIE } from "@/lib/session";
-import type { ErrorResponse } from "@/types";
+import { SESSION_COOKIE, setSession } from "@/lib/session";
+import type { AuthResponse, ErrorResponse } from "@/types";
+
+const MOCK_SESSION_MS = 60 * 60 * 1000;
+
+export function usesMockApi() {
+  return !process.env.API_URL && process.env.NODE_ENV !== "production";
+}
 
 export function errorResponse(status: number, message: string, cause?: unknown) {
   const requestId = crypto.randomUUID();
@@ -53,5 +59,23 @@ export async function callApi(req: NextRequest, path: string[]) {
   if (res.status === 401) {
     response.cookies.delete(SESSION_COOKIE);
   }
+  return response;
+}
+
+export async function startSession(req: NextRequest, path: string) {
+  const response = new NextResponse(null, { status: 204 });
+
+  if (usesMockApi()) {
+    setSession(response, "mock", new Date(Date.now() + MOCK_SESSION_MS));
+    return response;
+  }
+
+  const res = await callApi(req, [path]);
+  if (!res.ok) {
+    return res;
+  }
+
+  const auth: AuthResponse = await res.json();
+  setSession(response, auth.token, new Date(auth.expires_at));
   return response;
 }
