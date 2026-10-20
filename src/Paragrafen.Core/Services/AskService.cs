@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
 using Paragrafen.Core.Abstractions;
 using Paragrafen.Core.Contracts;
 using Paragrafen.Core.Exceptions;
@@ -7,7 +8,7 @@ using Paragrafen.Core.Prompts;
 
 namespace Paragrafen.Core.Services;
 
-public class AskService(IAiModelService aiModelService, AskPrompt prompt) : IAskService
+public class AskService(IAiModelService aiModelService, AskPrompt prompt, ILogger<AskService> logger) : IAskService
 {
     public async Task<AskResponse> AskAsync(AskRequest request, CancellationToken cancellationToken, Guid requestId)
     {
@@ -31,11 +32,11 @@ public class AskService(IAiModelService aiModelService, AskPrompt prompt) : IAsk
             "PARTIAL" => AnswerStatus.Answered, // note: AnswerStatus has no Partial yet
             "NOT_FOUND" => AnswerStatus.NotFound,
             "OUT_OF_SCOPE" => AnswerStatus.OutOfScope,
-            _ => throw new BadGatewayException("model_bad_format", "The model's answer could not be read.")
+            _ => throw BadFormat(requestId, aiModelAnswer)
         };
 
         var answer = ReadTag(aiModelAnswer, "answer")
-            ?? throw new BadGatewayException("model_bad_format", "The model's answer could not be read.");
+            ?? throw BadFormat(requestId, aiModelAnswer);
 
         return new AskResponse(
             requestId,
@@ -45,6 +46,14 @@ public class AskService(IAiModelService aiModelService, AskPrompt prompt) : IAsk
             sources,
             DateTime.UtcNow
         );
+    }
+
+    // Logs the start of the reply (not all of it, to keep user content in logs short) and returns the 502 to throw
+    private BadGatewayException BadFormat(Guid requestId, string reply)
+    {
+        logger.LogWarning("Request {RequestId}: could not read the model's reply. Start of reply: {ReplyStart}",
+            requestId, reply.Length > 200 ? reply[..200] : reply);
+        return new BadGatewayException("model_bad_format", "The model's answer could not be read.");
     }
 
     private static string? ReadTag(string text, string tag)
