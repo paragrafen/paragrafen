@@ -38,6 +38,11 @@ public class AskService(IAiModelService aiModelService, AskPrompt prompt, ILogge
         var answer = ReadTag(aiModelAnswer, "answer")
             ?? throw BadFormat(requestId, aiModelAnswer);
 
+        // <limitations> is optional; becomes the last paragraph of the answer when present
+        var limitations = ReadTag(aiModelAnswer, "limitations");
+        if (!string.IsNullOrWhiteSpace(limitations))
+            answer = $"{answer}\n\n{limitations}";
+
         return new AskResponse(
             requestId,
             conversationId,
