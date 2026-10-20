@@ -26,7 +26,8 @@ public class AskService(IAiModelService aiModelService, AskPrompt prompt, ILogge
 
         string aiModelAnswer = await aiModelService.CompleteAsync(system, user, cancellationToken);
 
-        var status = ReadTag(aiModelAnswer, "status")?.ToUpperInvariant() switch
+        var modelStatus = ReadTag(aiModelAnswer, "status")?.ToUpperInvariant();
+        var status = modelStatus switch
         {
             "ANSWERED" => AnswerStatus.Answered,
             "PARTIAL" => AnswerStatus.Answered, // note: AnswerStatus has no Partial yet
@@ -38,10 +39,21 @@ public class AskService(IAiModelService aiModelService, AskPrompt prompt, ILogge
         var answer = ReadTag(aiModelAnswer, "answer")
             ?? throw BadFormat(requestId, aiModelAnswer);
 
+        // if the model answers without citing sources
+        if (status == AnswerStatus.Answered && sources.Count == 0)
+        {
+            status = AnswerStatus.NotFound;
+            answer = NotFoundAnswer; // only a suggestion for what to send to frontend, can be changed
+        }
+
         // <limitations> is optional; becomes the last paragraph of the answer when present
         var limitations = ReadTag(aiModelAnswer, "limitations");
-        if (!string.IsNullOrWhiteSpace(limitations))
+        if (status == AnswerStatus.Answered && !string.IsNullOrWhiteSpace(limitations))
             answer = $"{answer}\n\n{limitations}";
+
+        logger.LogInformation(
+            "Request {RequestId}: prompt {PromptVersion}, model status {ModelStatus}, returned status {Status}",
+            requestId, prompt.Version, modelStatus, status);
 
         return new AskResponse(
             requestId,
@@ -53,13 +65,15 @@ public class AskService(IAiModelService aiModelService, AskPrompt prompt, ILogge
         );
     }
 
-    // Logs the start of the reply (not all of it, to keep user content in logs short) and returns the 502 to throw
+    // logs the start of the reply and returns the 502 to throw
     private BadGatewayException BadFormat(Guid requestId, string reply)
     {
-        logger.LogWarning("Request {RequestId}: could not read the model's reply. Start of reply: {ReplyStart}",
-            requestId, reply.Length > 200 ? reply[..200] : reply);
+        logger.LogWarning("Request {RequestId}: prompt {PromptVersion}, could not read the model's reply. Start of reply: {ReplyStart}",
+            requestId, prompt.Version, reply.Length > 200 ? reply[..200] : reply);
         return new BadGatewayException("model_bad_format", "The model's answer could not be read.");
     }
+
+    private const string NotFoundAnswer = "Jeg fant ingen lovtekst som svarer på spørsmålet.";
 
     private static string? ReadTag(string text, string tag)
     {
