@@ -64,8 +64,17 @@ public class IdentityService(UserManager<ApplicationUser> userManager) : IIdenti
         cancellationToken.ThrowIfCancellationRequested();
 
         var user = await userManager.FindByIdAsync(userId.ToString());
+        if (user is null || await userManager.IsLockedOutAsync(user))
+            return false;
 
-        return user is not null && await userManager.CheckPasswordAsync(user, password);
+        if (!await userManager.CheckPasswordAsync(user, password))
+        {
+            await userManager.AccessFailedAsync(user);
+            return false;
+        }
+
+        await userManager.ResetAccessFailedCountAsync(user);
+        return true;
     }
 
     // Private helper
