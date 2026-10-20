@@ -20,7 +20,7 @@ public class AuthService(
         var exists = await identityService.FindByEmailAsync(request.Email, cancellationToken);
         if (exists is not null)
         {
-            logger.LogWarning("User with email '{Email}' already exists.", request.Email);
+            logger.LogWarning("Registration attempt failed because the email is already registered.");
             throw new ConflictException(
                 "email_already_registered",
                 "The email address is already registered.");
