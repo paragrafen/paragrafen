@@ -87,6 +87,7 @@ public class AskCallLogTests(PostgresFixture db)
         new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
             builder
                 .UseSetting("ConnectionStrings:Paragrafen", db.ConnectionString)
+                .UseSetting("Jwt:IssuerSigningKey", new string('k', 32))
                 .UseSetting("Foundry:ChatClient", "test-model")
                 .UseSetting("Foundry:Prices:test-model:InputPerMillionNok", "10")
                 .UseSetting("Foundry:Prices:test-model:CachedInputPerMillionNok", "2.5")
