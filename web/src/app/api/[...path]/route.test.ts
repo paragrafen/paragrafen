@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { NextRequest } from "next/server";
 import { GET, POST } from "./route";
 
 const API_URL = "http://api.internal";
@@ -29,7 +30,7 @@ describe("POST", () => {
     );
 
     const res = await POST(
-      new Request("http://web/api/ask", {
+      new NextRequest("http://web/api/ask", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: '{"question":"Hva er prøvetid?"}',
@@ -51,7 +52,7 @@ describe("GET", () => {
     const fetchMock = stubFetch(Response.json([{ chunk_id: "1" }]));
 
     const res = await GET(
-      new Request("http://web/api/search?q=prøvetid&limit=5"),
+      new NextRequest("http://web/api/search?q=prøvetid&limit=5"),
       context("search"),
     );
 
@@ -65,7 +66,7 @@ describe("GET", () => {
   it("encodes each path segment", async () => {
     const fetchMock = stubFetch(new Response());
 
-    await GET(new Request("http://web/api/a/b%3Fc"), context("a", "b?c"));
+    await GET(new NextRequest("http://web/api/a/b%3Fc"), context("a", "b?c"));
 
     expect(fetchMock.mock.calls[0][0]).toBe(`${API_URL}/a/b%3Fc`);
   });
@@ -79,7 +80,7 @@ describe("responses from the API", () => {
     };
     stubFetch(Response.json(error, { status: 503 }));
 
-    const res = await GET(new Request("http://web/api/ask"), context("ask"));
+    const res = await GET(new NextRequest("http://web/api/ask"), context("ask"));
 
     expect(res.status).toBe(503);
     expect(await res.json()).toEqual(error);
@@ -91,7 +92,7 @@ describe("responses from the API", () => {
     );
 
     const res = await GET(
-      new Request("http://web/api/health"),
+      new NextRequest("http://web/api/health"),
       context("health"),
     );
 
@@ -100,9 +101,64 @@ describe("responses from the API", () => {
   });
 });
 
+describe("the session cookie", () => {
+  function askWithSession() {
+    return new NextRequest("http://web/api/ask", {
+      method: "POST",
+      headers: { cookie: "session=abc.def.ghi" },
+      body: "{}",
+    });
+  }
+
+  it("is sent to the API as a bearer token", async () => {
+    const fetchMock = stubFetch(new Response());
+
+    await POST(askWithSession(), context("ask"));
+
+    const headers = new Headers(fetchMock.mock.calls[0][1].headers);
+    expect(headers.get("authorization")).toBe("Bearer abc.def.ghi");
+  });
+
+  it("is not replaced by an authorization header from the browser", async () => {
+    const fetchMock = stubFetch(new Response());
+
+    await POST(
+      new NextRequest("http://web/api/ask", {
+        method: "POST",
+        headers: { authorization: "Bearer forged" },
+        body: "{}",
+      }),
+      context("ask"),
+    );
+
+    const headers = new Headers(fetchMock.mock.calls[0][1].headers);
+    expect(headers.has("authorization")).toBe(false);
+  });
+
+  it("is deleted when the API answers 401", async () => {
+    stubFetch(Response.json({}, { status: 401 }));
+
+    const res = await POST(askWithSession(), context("ask"));
+
+    expect(res.status).toBe(401);
+    const setCookie = res.headers.get("set-cookie") ?? "";
+    expect(setCookie).toMatch(/^session=;/);
+    expect(setCookie).toContain("Path=/");
+    expect(setCookie).toContain("Expires=Thu, 01 Jan 1970");
+  });
+
+  it("is kept on other errors", async () => {
+    stubFetch(Response.json({}, { status: 503 }));
+
+    const res = await POST(askWithSession(), context("ask"));
+
+    expect(res.headers.get("set-cookie")).toBeNull();
+  });
+});
+
 it("cancels the API call when the browser disconnects", async () => {
   const fetchMock = stubFetch(new Response());
-  const req = new Request("http://web/api/ask", { method: "POST", body: "{}" });
+  const req = new NextRequest("http://web/api/ask", { method: "POST", body: "{}" });
 
   await POST(req, context("ask"));
 
@@ -117,7 +173,7 @@ describe("when the API is unreachable", () => {
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
 
     const res = await POST(
-      new Request("http://web/api/ask", { method: "POST", body: "{}" }),
+      new NextRequest("http://web/api/ask", { method: "POST", body: "{}" }),
       context("ask"),
     );
 
@@ -141,7 +197,7 @@ describe("when the API is unreachable", () => {
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
 
     await POST(
-      new Request("http://web/api/ask", {
+      new NextRequest("http://web/api/ask", {
         method: "POST",
         body: "{}",
         signal: controller.signal,
@@ -159,7 +215,7 @@ describe("without API_URL in production", () => {
     vi.stubEnv("NODE_ENV", "production");
 
     const res = await POST(
-      new Request("http://web/api/ask", { method: "POST", body: "{}" }),
+      new NextRequest("http://web/api/ask", { method: "POST", body: "{}" }),
       context("ask"),
     );
 
@@ -180,7 +236,7 @@ describe("without API_URL in development", () => {
     const fetchMock = stubFetch(new Response());
 
     const res = await POST(
-      new Request("http://web/api/ask", { method: "POST", body: "{}" }),
+      new NextRequest("http://web/api/ask", { method: "POST", body: "{}" }),
       context("ask"),
     );
 
@@ -193,7 +249,7 @@ describe("without API_URL in development", () => {
     const fetchMock = stubFetch(new Response());
 
     const res = await GET(
-      new Request("http://web/api/results"),
+      new NextRequest("http://web/api/results"),
       context("results"),
     );
 
