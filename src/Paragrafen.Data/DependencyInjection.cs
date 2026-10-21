@@ -16,7 +16,7 @@ using Paragrafen.Data.Ai;
 using Paragrafen.Data.Calls;
 using Paragrafen.Data.Identity;
 using Paragrafen.Data.Persistence;
-
+using Paragrafen.Core.Prompts;
 namespace Paragrafen.Data;
 
 public static class DependencyInjection

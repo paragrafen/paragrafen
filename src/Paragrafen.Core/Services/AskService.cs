@@ -139,34 +139,6 @@ public class AskService(
         return new BadGatewayException("model_bad_format", "The model's answer could not be read.");
     }
 
-    private async Task<ModelResult> CompleteAsync(string system, string user, CallRecord record, CancellationToken cancellationToken)
-    {
-        var started = timeProvider.GetTimestamp();
-        ModelResult? result = null;
-        try
-        {
-            result = await aiModelService.CompleteAsync(system, user, cancellationToken);
-            return result;
-        }
-        finally
-        {
-            record.AddModelCall(result, timeProvider.GetElapsedTime(started), modelPrice);
-        }
-    }
-
-    private async Task WriteCallLogAsync(CallRecord record)
-    {
-        try
-        {
-            using var timeout = new CancellationTokenSource(CallLogTimeout, timeProvider);
-            await callLog.WriteAsync(record, timeout.Token);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Could not write call log for request {RequestId}", record.RequestId);
-        }
-    }
-
     private const string NotFoundAnswer = "Jeg fant ingen lovtekst som svarer på spørsmålet.";
 
     private static string? ReadTag(string text, string tag)
