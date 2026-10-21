@@ -9,8 +9,15 @@ internal sealed class FakeAiModelService(Func<CancellationToken, ModelResult> co
 
     public static FakeAiModelService Throwing(Exception exception) => new(_ => throw exception);
 
-    public Task<ModelResult> CompleteAsync(string message, CancellationToken cancellationToken) =>
-        Task.FromResult(complete(cancellationToken));
+    public string? LastPrompt { get; private set; }
+    public string? LastMessage { get; private set; }
+
+    public Task<ModelResult> CompleteAsync(string prompt, string message, CancellationToken cancellationToken)
+    {
+        LastPrompt = prompt;
+        LastMessage = message;
+        return Task.FromResult(complete(cancellationToken));
+    }
 }
 
 internal sealed class FakeEmbeddingService : IEmbeddingService
