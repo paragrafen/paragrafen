@@ -15,7 +15,7 @@ public class AskCallLogTests(PostgresFixture db)
 {
     private const string Question = "Hvor gammel må man være for å stemme?";
     private static readonly ModelResult Usage = new(
-        "Du må være 18 år.",
+        "<status>NOT_FOUND</status><answer>Jeg fant ingen lovtekst om dette.</answer>",
         "gpt-6-luna-2026-09-22",
         1000,
         400,
@@ -35,7 +35,7 @@ public class AskCallLogTests(PostgresFixture db)
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();
         var row = await db.ReadCallAsync(body.GetProperty("request_id").GetGuid());
         Assert.Equal(body.GetProperty("conversation_id").GetGuid(), row["conversation_id"]);
-        Assert.Equal("answered", row["status"]);
+        Assert.Equal("not_found", row["status"]);
         Assert.Equal((short)1, row["attempts"]);
         Assert.Equal("gpt-6-luna-2026-09-22", row["model"]);
         Assert.Equal(1000, row["input_tokens"]);
@@ -92,14 +92,24 @@ public class AskCallLogTests(PostgresFixture db)
                 .UseSetting("Foundry:Prices:test-model:InputPerMillionNok", "10")
                 .UseSetting("Foundry:Prices:test-model:CachedInputPerMillionNok", "2.5")
                 .UseSetting("Foundry:Prices:test-model:OutputPerMillionNok", "40")
-                .ConfigureTestServices(services => services.AddSingleton(model))
+                .ConfigureTestServices(services =>
+                {
+                    services.AddSingleton(model);
+                    services.AddSingleton<IEmbeddingService, StubEmbeddingService>();
+                })
         );
 
     private sealed class StubAiModelService(Func<ModelResult> complete) : IAiModelService
     {
         public Task<ModelResult> CompleteAsync(
+            string prompt,
             string message,
             CancellationToken cancellationToken
         ) => Task.FromResult(complete());
+    }
+    private sealed class StubEmbeddingService : IEmbeddingService
+    {
+        public Task<EmbeddingResult> EmbedAsync(string text, CancellationToken cancellationToken) =>
+            Task.FromResult(new EmbeddingResult(new float[1536], "text-embedding-3-small", 0));
     }
 }

@@ -9,8 +9,28 @@ internal sealed class FakeAiModelService(Func<CancellationToken, ModelResult> co
 
     public static FakeAiModelService Throwing(Exception exception) => new(_ => throw exception);
 
-    public Task<ModelResult> CompleteAsync(string message, CancellationToken cancellationToken) =>
-        Task.FromResult(complete(cancellationToken));
+    public string? LastPrompt { get; private set; }
+    public string? LastMessage { get; private set; }
+
+    public Task<ModelResult> CompleteAsync(string prompt, string message, CancellationToken cancellationToken)
+    {
+        LastPrompt = prompt;
+        LastMessage = message;
+        return Task.FromResult(complete(cancellationToken));
+    }
+}
+
+internal sealed class FakeEmbeddingService : IEmbeddingService
+{
+    public Task<EmbeddingResult> EmbedAsync(string text, CancellationToken cancellationToken) =>
+        Task.FromResult(new EmbeddingResult(new float[1536], "text-embedding-3-small", 0));
+}
+
+internal sealed class FakeChunkSearch : IChunkSearch
+{
+    public Task<IReadOnlyList<ChunkMatch>> FindClosestAsync(
+        ReadOnlyMemory<float> embedding, int limit, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<ChunkMatch>>([]);
 }
 
 internal sealed class FakeCallLog : ICallLog

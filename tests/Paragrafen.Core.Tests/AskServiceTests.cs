@@ -4,6 +4,7 @@ using Microsoft.Extensions.Time.Testing;
 using Paragrafen.Core.Contracts;
 using Paragrafen.Core.Exceptions;
 using Paragrafen.Core.Models;
+using Paragrafen.Core.Prompts;
 using Paragrafen.Core.Services;
 
 namespace Paragrafen.Core.Tests;
@@ -12,13 +13,17 @@ public class AskServiceTests
 {
     private const string Question = "Hvor gammel må man være for å stemme?";
     private static readonly ModelPrice Price = new(10m, 2.5m, 40m);
-    private static readonly ModelResult Usage = new("Du må være 18 år.", "gpt-6-luna-2026-08-01", 1000, 400, 500, 300);
+    private const string Answer = "Jeg fant ingen lovtekst om dette.";
+    // a well-formed reply that isn't downgraded: there are no sources, so ANSWERED would become not_found
+    private static readonly ModelResult Usage = new(
+        $"<status>NOT_FOUND</status>\n<answer>{Answer}</answer>\n<limitations></limitations>",
+        "gpt-6-luna-2026-08-01", 1000, 400, 500, 300);
 
     private readonly FakeTimeProvider _time = new();
     private readonly FakeLogger<AskService> _logger = new();
 
     private AskService CreateService(FakeAiModelService model, FakeCallLog? callLog = null) =>
-        new(model, callLog ?? new FakeCallLog(), Price, _time, _logger);
+        new(model, new FakeEmbeddingService(), new FakeChunkSearch(), AskPrompt.Load("v0"), callLog ?? new FakeCallLog(), Price, _time, _logger);
 
     private FakeAiModelService TakingTime(TimeSpan duration, Func<ModelResult> complete) =>
         new(_ =>
@@ -28,13 +33,70 @@ public class AskServiceTests
         });
 
     [Fact]
-    public async Task Model_text_is_returned_as_the_answer()
+    public async Task Answer_tag_is_returned_as_the_answer()
     {
         var response = await CreateService(FakeAiModelService.Returning(Usage))
             .AskAsync(new AskRequest(Question), CancellationToken.None, Guid.CreateVersion7());
 
-        Assert.Equal(AnswerStatus.Answered, response.Status);
-        Assert.Equal("Du må være 18 år.", response.Answer);
+        Assert.Equal(AnswerStatus.NotFound, response.Status);
+        Assert.Equal(Answer, response.Answer);
+    }
+
+    [Fact]
+    public async Task Prompt_and_question_are_sent_separately()
+    {
+        var model = FakeAiModelService.Returning(Usage);
+
+        await CreateService(model).AskAsync(new AskRequest(Question), CancellationToken.None, Guid.CreateVersion7());
+
+        Assert.StartsWith("<role>", model.LastPrompt);
+        Assert.DoesNotContain(Question, model.LastPrompt);
+        Assert.Contains($"<question>\n{Question}\n</question>", model.LastMessage);
+    }
+
+    [Fact]
+    public async Task Answered_without_sources_is_downgraded_to_not_found()
+    {
+        var callLog = new FakeCallLog();
+        var model = FakeAiModelService.Returning(Usage with
+        {
+            Text = "<status>ANSWERED</status>\n<answer>Du må være 18 år [1].</answer>\n<limitations></limitations>",
+        });
+
+        var response = await CreateService(model, callLog)
+            .AskAsync(new AskRequest(Question), CancellationToken.None, Guid.CreateVersion7());
+
+        Assert.Equal(AnswerStatus.NotFound, response.Status);
+        Assert.Equal("Jeg fant ingen lovtekst som svarer på spørsmålet.", response.Answer);
+        Assert.Equal("not_found", Assert.Single(callLog.Written).Status);
+    }
+
+    [Fact]
+    public async Task Status_is_read_case_insensitively()
+    {
+        var model = FakeAiModelService.Returning(Usage with
+        {
+            Text = "<status>out_of_scope</status>\n<answer>Det kan jeg ikke svare på.</answer>",
+        });
+
+        var response = await CreateService(model)
+            .AskAsync(new AskRequest(Question), CancellationToken.None, Guid.CreateVersion7());
+
+        Assert.Equal(AnswerStatus.OutOfScope, response.Status);
+    }
+
+    [Fact]
+    public async Task Reply_without_tags_is_a_bad_gateway()
+    {
+        var callLog = new FakeCallLog();
+        var service = CreateService(FakeAiModelService.Returning(Usage with { Text = "Du må være 18 år." }), callLog);
+
+        var ex = await Assert.ThrowsAsync<BadGatewayException>(() =>
+            service.AskAsync(new AskRequest(Question), CancellationToken.None, Guid.CreateVersion7()));
+
+        Assert.Equal("model_bad_format", ex.Code);
+        Assert.Equal("model_bad_format", Assert.Single(callLog.Written).FailureReason);
+        Assert.Contains(_logger.Collector.GetSnapshot(), log => log.Level == LogLevel.Warning);
     }
 
     [Fact]
@@ -49,7 +111,7 @@ public class AskServiceTests
     }
 
     [Fact]
-    public async Task Answered_question_writes_one_record_with_usage_and_cost()
+    public async Task Model_call_writes_one_record_with_usage_and_cost()
     {
         var callLog = new FakeCallLog();
         var requestId = Guid.CreateVersion7();
@@ -61,7 +123,7 @@ public class AskServiceTests
         Assert.Equal(requestId, record.RequestId);
         Assert.Equal(response.ConversationId, record.ConversationId);
         Assert.Equal(response.AskedAt, record.CreatedAt);
-        Assert.Equal("answered", record.Status);
+        Assert.Equal("not_found", record.Status);
         Assert.Null(record.FailureReason);
         Assert.Equal(1, record.Attempts);
         Assert.Equal("gpt-6-luna-2026-08-01", record.Model);
@@ -225,8 +287,8 @@ public class AskServiceTests
         var response = await CreateService(FakeAiModelService.Returning(Usage), callLog)
             .AskAsync(new AskRequest(Question), CancellationToken.None, Guid.CreateVersion7());
 
-        Assert.Equal(AnswerStatus.Answered, response.Status);
-        Assert.Equal("Du må være 18 år.", response.Answer);
+        Assert.Equal(AnswerStatus.NotFound, response.Status);
+        Assert.Equal(Answer, response.Answer);
     }
 
     [Fact]
@@ -259,7 +321,7 @@ public class AskServiceTests
         Assert.True(callLog.WriteCancelled);
         var response = await ask;
 
-        Assert.Equal(AnswerStatus.Answered, response.Status);
+        Assert.Equal(AnswerStatus.NotFound, response.Status);
         Assert.Equal(LogLevel.Error, _logger.LatestRecord.Level);
     }
 }

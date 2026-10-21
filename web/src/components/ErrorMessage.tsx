@@ -6,6 +6,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   unauthorized: "Du må logge inn for å stille spørsmål.",
   rate_limited:
     "Du har stilt mange spørsmål på kort tid. Vent litt og prøv igjen.",
+  model_bad_format: "Vi klarte ikke å lage et svar denne gangen. Vennligst prøv igjen.",
 };
 
 const FALLBACK_MESSAGE = "Noe gikk galt. Prøv igjen.";

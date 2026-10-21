@@ -1,5 +1,6 @@
 using Azure.Core;
 using Npgsql;
+using Pgvector.Npgsql;
 
 namespace Paragrafen.Data;
 
@@ -12,6 +13,7 @@ public static class ParagrafenDataSource
     public static NpgsqlDataSource Create(string connectionString, TokenCredential credential)
     {
         var builder = new NpgsqlDataSourceBuilder(connectionString);
+        builder.UseVector();
         if (string.IsNullOrEmpty(builder.ConnectionStringBuilder.Password))
         {
             builder.UsePasswordProvider(
