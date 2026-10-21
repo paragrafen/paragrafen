@@ -57,12 +57,7 @@ public class AskService(
         if (request.Question.Length > 500)
             throw new BadRequestException("question_too_long", "Question must be at most 500 characters.");
 
-        // note: db is currently empty, so no documents are retrieved
-        var sources = new List<Source>();
-        var documents = "";
-        var (system, user) = prompt.Render(request.Question, documents);
-
-        var result = await CompleteAsync(system, user, record, cancellationToken);
+        // find law test frist
         var questionEmbedding = await embeddingService.EmbedAsync(request.Question, cancellationToken);
         var chunks = await chunkSearch.FindClosestAsync(questionEmbedding.Vector, MaxChunks, cancellationToken);
 
@@ -72,7 +67,9 @@ public class AskService(
         foreach (var chunk in chunks)
             logger.LogInformation("{Distance:F3} {Law} {Section}", chunk.Distance, chunk.Law, chunk.SectionRef);
 
+        var (system, user) = prompt.Render(request.Question, AskPrompt.FormatDocuments(chunks));
 
+        var result = await CompleteAsync(system, user, record, cancellationToken);
 
         if (string.IsNullOrWhiteSpace(result.Text))
             throw new BadGatewayException("model_no_answer", "The model did not return anything");
@@ -90,17 +87,20 @@ public class AskService(
         var answer = ReadTag(result.Text, "answer")
             ?? throw BadFormat(record.RequestId, result.Text);
 
+        // <limitations> is optional; becomes the last paragraph of the answer when present.
+        // Appended before the renumbering, so citations in it are renumbered and linked like the rest of the answer.
+        var limitations = ReadTag(result.Text, "limitations");
+        if (status == AnswerStatus.Answered && !string.IsNullOrWhiteSpace(limitations))
+            answer = $"{answer}\n\n{limitations}";
+
+        (answer, var sources) = WithCitedSources(answer, chunks);
+
         // if the model answers without citing sources
         if (status == AnswerStatus.Answered && sources.Count == 0)
         {
             status = AnswerStatus.NotFound;
             answer = NotFoundAnswer; // only a suggestion for what to send to frontend, can be changed
         }
-
-        // <limitations> is optional; becomes the last paragraph of the answer when present
-        var limitations = ReadTag(result.Text, "limitations");
-        if (status == AnswerStatus.Answered && !string.IsNullOrWhiteSpace(limitations))
-            answer = $"{answer}\n\n{limitations}";
 
         logger.LogInformation(
             "Request {RequestId}: prompt {PromptVersion}, model status {ModelStatus}, returned status {Status}",
@@ -159,4 +159,46 @@ public class AskService(
         var match = Regex.Match(text, $"<{tag}>(.*?)</{tag}>", RegexOptions.Singleline);
         return match.Success ? match.Groups[1].Value.Trim() : null;
     }
+
+    // The model cites document ids as [3], [2] (also tolerates [3, 2]): 1-based positions in chunks, in the order
+    // AskPrompt.FormatDocuments numbered them. The user only sees the cited sources, so the citations are renumbered
+    // in order of first appearance to match them: [1] is always sources[0]. Ids the model made up are dropped from
+    // the text, so an answer citing only those ends up with no sources and is treated as not found.
+    private static (string Answer, List<Source> Sources) WithCitedSources(string answer, IReadOnlyList<ChunkMatch> chunks)
+    {
+        var newIds = new Dictionary<int, int>();
+        var sources = new List<Source>();
+
+        var renumbered = Regex.Replace(answer, @"\[(\d+(?:\s*,\s*\d+)*)\]", match =>
+        {
+            var ids = match.Groups[1].Value.Split(',')
+                .Select(id => int.TryParse(id.Trim(), out var number) ? number : 0)
+                .Where(id => id >= 1 && id <= chunks.Count)
+                .Select(id =>
+                {
+                    if (!newIds.TryGetValue(id, out var newId))
+                    {
+                        newId = newIds[id] = sources.Count + 1;
+                        sources.Add(ToSource(chunks[id - 1]));
+                    }
+                    return newId;
+                })
+                .Distinct()
+                .ToList();
+
+            // One number per bracket ([1][2]), since the frontend only links single-number citations.
+            return string.Concat(ids.Select(id => $"[{id}]"));
+        });
+
+        return (renumbered, sources);
+    }
+
+    private static Source ToSource(ChunkMatch chunk) => new(
+        chunk.ChunkId.ToString(),
+        chunk.Law,
+        "", // note: no provision heading in ChunkMatch yet; agree with the frontend what goes here
+        chunk.SectionRef ?? "",
+        LovdataUrl(chunk.DokId));
+
+    private static Uri LovdataUrl(string dokId) => new($"https://lovdata.no/dokument/{dokId}");
 }
