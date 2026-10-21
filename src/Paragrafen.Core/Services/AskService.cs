@@ -8,6 +8,8 @@ namespace Paragrafen.Core.Services;
 
 public class AskService(
     IAiModelService aiModelService,
+    IEmbeddingService embeddingService,
+    IChunkSearch chunkSearch,
     ICallLog callLog,
     ModelPrice modelPrice,
     TimeProvider timeProvider,
@@ -15,6 +17,7 @@ public class AskService(
 ) : IAskService
 {
     private static readonly TimeSpan CallLogTimeout = TimeSpan.FromSeconds(5);
+    private const int MaxChunks = 5;
 
     public async Task<AskResponse> AskAsync(AskRequest request, CancellationToken cancellationToken, Guid requestId)
     {
@@ -50,6 +53,16 @@ public class AskService(
             throw new BadRequestException("empty_question", "Question must not be empty.");
         if (request.Question.Length > 500)
             throw new BadRequestException("question_too_long", "Question must be at most 500 characters.");
+
+        var questionEmbedding = await embeddingService.EmbedAsync(request.Question, cancellationToken);
+        var chunks = await chunkSearch.FindClosestAsync(questionEmbedding.Vector, MaxChunks, cancellationToken);
+
+        logger.LogInformation(
+            "Embedded question with {Model} ({Tokens} tokens, {Dimensions} dimensions), found {Count} chunks",
+            questionEmbedding.Model, questionEmbedding.InputTokens, questionEmbedding.Vector.Length, chunks.Count);
+        foreach (var chunk in chunks)
+            logger.LogInformation("{Distance:F3} {Law} {Section}", chunk.Distance, chunk.Law, chunk.SectionRef);
+
 
         var result = await CompleteAsync(request.Question, record, cancellationToken);
 

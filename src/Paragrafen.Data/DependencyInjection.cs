@@ -16,6 +16,7 @@ using Paragrafen.Data.Ai;
 using Paragrafen.Data.Calls;
 using Paragrafen.Data.Identity;
 using Paragrafen.Data.Persistence;
+using Paragrafen.Data.Search;
 
 namespace Paragrafen.Data;
 
@@ -65,16 +66,20 @@ public static class DependencyInjection
         services.AddSingleton<ITokenService, JwtTokenService>();
         //services.AddScoped<IDatabaseSeeder, DatabaseSeeder>();
 
-        services.AddSingleton(_ =>
-        {
-            var endpoint = configuration["Foundry:Endpoint"]
-                           ?? throw new InvalidOperationException("Foundry:Endpoint is not configured.");
-            var chatDeployment = configuration["Foundry:ChatClient"]
-                                 ?? throw new InvalidOperationException("Foundry:ChatClient is not configured.");
-            var client = new AzureOpenAIClient(new Uri(endpoint), new DefaultAzureCredential());
-            return client.GetChatClient(chatDeployment);
-        });
+        var endpoint = configuration["Foundry:Endpoint"]
+                       ?? throw new InvalidOperationException("Foundry:Endpoint is not configured.");
+        var chatDeployment = configuration["Foundry:ChatClient"]
+                             ?? throw new InvalidOperationException("Foundry:ChatClient is not configured.");
+        var embeddingDeployment = configuration["Foundry:EmbeddingClient"]
+                                  ?? throw new InvalidOperationException("Foundry:EmbeddingClient is not configured.");
+
+        services.AddSingleton(_ => new AzureOpenAIClient(new Uri(endpoint), new DefaultAzureCredential()));
+        services.AddSingleton(sp => sp.GetRequiredService<AzureOpenAIClient>().GetChatClient(chatDeployment));
+        services.AddSingleton(sp => sp.GetRequiredService<AzureOpenAIClient>().GetEmbeddingClient(embeddingDeployment));
+
         services.AddSingleton<IAiModelService, AiModelService>();
+        services.AddSingleton<IEmbeddingService, EmbeddingService>();
+
 
         services.AddSingleton(_ =>
         {
@@ -84,6 +89,7 @@ public static class DependencyInjection
                    ?? throw new InvalidOperationException($"Foundry:Prices:{deployment} is not configured.");
         });
         services.AddSingleton<ICallLog, CallLog>();
+        services.AddSingleton<IChunkSearch, ChunkSearch>();
 
 
 
