@@ -11,3 +11,19 @@ export function setSession(res: NextResponse, token: string, expires: Date) {
     expires,
   });
 }
+
+const ROLE_CLAIM =
+  "http://schemas.microsoft.com/ws/2008/06/identity/claims/role";
+
+export function isAdmin(token: string | undefined) {
+  const payload = token?.split(".")[1];
+  if (!payload) return false;
+  try {
+    const claims = JSON.parse(
+      Buffer.from(payload, "base64url").toString("utf8"),
+    );
+    return [claims[ROLE_CLAIM]].flat().includes("Admin");
+  } catch {
+    return false;
+  }
+}
