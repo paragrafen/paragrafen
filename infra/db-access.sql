@@ -23,3 +23,5 @@ GRANT SELECT, INSERT, UPDATE, DELETE
     TO "id-paragrafen-ingest";
 GRANT SELECT ON public.documents, public.sections, public.chunks
     TO "id-paragrafen-api";
+
+GRANT INSERT ON public.calls TO "id-paragrafen-api";
