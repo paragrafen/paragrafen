@@ -16,7 +16,7 @@ using Paragrafen.Data.Ai;
 using Paragrafen.Data.Calls;
 using Paragrafen.Data.Identity;
 using Paragrafen.Data.Persistence;
-
+using Paragrafen.Core.Prompts;
 namespace Paragrafen.Data;
 
 public static class DependencyInjection
@@ -83,6 +83,7 @@ public static class DependencyInjection
             return configuration.GetSection($"Foundry:Prices:{deployment}").Get<ModelPrice>()
                    ?? throw new InvalidOperationException($"Foundry:Prices:{deployment} is not configured.");
         });
+        services.AddSingleton(AskPrompt.Load("v0"));
         services.AddSingleton<ICallLog, CallLog>();
 
 

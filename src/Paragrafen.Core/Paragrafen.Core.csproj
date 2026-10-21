@@ -11,7 +11,10 @@
       <PackageReference Include="FluentValidation" Version="12.2.0" />
       <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
       <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="10.0.12" />
+  </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Prompts\*.md" />
   </ItemGroup>
 
 </Project>

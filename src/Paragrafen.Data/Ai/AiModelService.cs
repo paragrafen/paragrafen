@@ -12,7 +12,7 @@ public class AiModelService(ChatClient chatClient) : IAiModelService
 {
     private const int MaxOutputTokens = 1000;
 
-    public Task<ModelResult> CompleteAsync(string message, CancellationToken cancellationToken) =>
+    public Task<ModelResult> CompleteAsync(string prompt, string message, CancellationToken cancellationToken) =>
         CallAsync(async () =>
         {
             // gpt-6-luna rejects the legacy max_tokens field, which Azure.AI.OpenAI sends by default.
@@ -27,7 +27,7 @@ public class AiModelService(ChatClient chatClient) : IAiModelService
 #pragma warning restore AOAI001
 
             ChatCompletion completion = await chatClient.CompleteChatAsync(
-                [new UserChatMessage(message)],
+                [new SystemChatMessage(prompt), new UserChatMessage(message)],
                 requestOptions,
                 cancellationToken: cancellationToken);
 
