@@ -12,6 +12,7 @@ const HEADINGS = [
   "Spørsmål",
   "Besvart",
   "Ikke funnet",
+  "Utenfor tema",
   "Feil",
   "Feilrate",
   "Kostnad (median)",
@@ -45,6 +46,7 @@ export function DayTable({ days }: { days: DayStats[] }) {
               <td className={CELL}>{formatCount(stats.calls)}</td>
               <td className={CELL}>{formatCount(stats.answered)}</td>
               <td className={CELL}>{formatCount(stats.not_found)}</td>
+              <td className={CELL}>{formatCount(stats.out_of_scope)}</td>
               <td className={CELL}>{formatCount(stats.errors)}</td>
               <td className={CELL}>{formatPercent(stats.error_rate)}</td>
               <td className={CELL}>{formatNok(stats.cost_nok_median)}</td>
