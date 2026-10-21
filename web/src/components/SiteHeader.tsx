@@ -1,11 +1,7 @@
-import Link from "next/link";
+import { Suspense } from "react";
+import { AdminLink } from "./AdminLink";
 
-interface SiteHeaderProps {
-  loggedIn?: boolean;
-  admin?: boolean;
-}
-
-export function SiteHeader({ loggedIn = false, admin = false }: SiteHeaderProps) {
+export function SiteHeader({ loggedIn = false }: { loggedIn?: boolean }) {
   return (
     <header className="mb-8">
       <div className="flex items-start justify-between gap-4">
@@ -14,14 +10,9 @@ export function SiteHeader({ loggedIn = false, admin = false }: SiteHeaderProps)
         </h1>
         {loggedIn && (
           <div className="flex items-center gap-2">
-            {admin && (
-              <Link
-                href="/resultater"
-                className="rounded-lg border border-border px-3 py-1.5 text-sm text-muted hover:text-foreground"
-              >
-                Resultater
-              </Link>
-            )}
+            <Suspense fallback={null}>
+              <AdminLink />
+            </Suspense>
             <form action="/api/logout" method="post">
               <button className="cursor-pointer rounded-lg border border-border px-3 py-1.5 text-sm text-muted hover:text-foreground">
                 Logg ut
