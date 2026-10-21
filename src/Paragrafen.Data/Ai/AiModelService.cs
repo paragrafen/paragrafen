@@ -10,10 +10,10 @@ namespace Paragrafen.Data.Ai;
 
 public class AiModelService(ChatClient chatClient) : IAiModelService
 {
-    private const int MaxOutputTokens = 1000;
+    private const int MaxOutputTokens = 5000;
 
     public Task<ModelResult> CompleteAsync(string message, CancellationToken cancellationToken) =>
-        CallAsync(async () =>
+        AiCalls.CallAsync(async () =>
         {
             // gpt-6-luna rejects the legacy max_tokens field, which Azure.AI.OpenAI sends by default.
             // This beta opt-in sends max_completion_tokens instead; remove it once a stable version does that by default.
@@ -39,21 +39,4 @@ public class AiModelService(ChatClient chatClient) : IAiModelService
                 completion.Usage.OutputTokenCount,
                 completion.Usage.OutputTokenDetails?.ReasoningTokenCount ?? 0);
         });
-    private static async Task<T> CallAsync<T>(Func<Task<T>> call)
-    {
-        try
-        {
-            return await call();
-        }
-        catch (ClientResultException ex) when (ex.Status == 429)
-        {
-            throw new ServiceUnavailableException(
-                "model_busy", "The model is handling too many requests. Try again shortly.", ex);
-        }
-        catch (Exception ex) when (ex is ClientResultException or AuthenticationFailedException)
-        {
-            throw new BadGatewayException(
-                "model_unavailable", "The language model could not be reached.", ex);
-        }
-    }
 }
