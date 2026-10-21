@@ -246,6 +246,64 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/results": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ResultsResponse"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -277,6 +335,45 @@ export interface components {
             expires_at: string;
             user: components["schemas"]["UserResponse"];
         };
+        CallStats: {
+            /** Format: int32 */
+            calls: number;
+            /** Format: int32 */
+            answered: number;
+            /** Format: int32 */
+            not_found: number;
+            /** Format: int32 */
+            out_of_scope: number;
+            /** Format: int32 */
+            errors: number;
+            /** Format: double */
+            error_rate: number;
+            /** Format: double */
+            cost_nok_total: number;
+            /** Format: double */
+            cost_nok_median: null | number;
+            /** Format: double */
+            cost_nok_p95: null | number;
+            /** Format: int32 */
+            latency_ms_p50: null | number;
+            /** Format: int32 */
+            latency_ms_p95: null | number;
+            /** Format: int32 */
+            llm_latency_ms_p50: null | number;
+            /** Format: int64 */
+            input_tokens: number;
+            /** Format: int64 */
+            cached_tokens: number;
+            /** Format: int64 */
+            output_tokens: number;
+            /** Format: int64 */
+            reasoning_tokens: number;
+        };
+        DayStats: {
+            /** Format: date */
+            date: string;
+            stats: components["schemas"]["CallStats"];
+        };
         ErrorDetail: {
             code: string;
             message: string;
@@ -290,10 +387,36 @@ export interface components {
             email: string;
             password: string;
         };
+        RecentCall: {
+            /** Format: uuid */
+            request_id: string;
+            /** Format: date-time */
+            created_at: string;
+            status: string;
+            failure_reason: null | string;
+            model: null | string;
+            /** Format: int32 */
+            attempts: number;
+            /** Format: int32 */
+            input_tokens: number;
+            /** Format: int32 */
+            output_tokens: number;
+            /** Format: double */
+            cost_nok: number;
+            /** Format: int32 */
+            latency_ms: number;
+        };
         RegisterRequest: {
             email: string;
             user_name: string;
             password: string;
+        };
+        ResultsResponse: {
+            /** Format: date-time */
+            generated_at: string;
+            total: components["schemas"]["CallStats"];
+            days: components["schemas"]["DayStats"][];
+            recent_calls: components["schemas"]["RecentCall"][];
         };
         Source: {
             chunk_id: string;
@@ -322,10 +445,14 @@ export type AnswerStatus = components['schemas']['AnswerStatus'];
 export type AskRequest = components['schemas']['AskRequest'];
 export type AskResponse = components['schemas']['AskResponse'];
 export type AuthResponse = components['schemas']['AuthResponse'];
+export type CallStats = components['schemas']['CallStats'];
+export type DayStats = components['schemas']['DayStats'];
 export type ErrorDetail = components['schemas']['ErrorDetail'];
 export type ErrorResponse = components['schemas']['ErrorResponse'];
 export type LoginRequest = components['schemas']['LoginRequest'];
+export type RecentCall = components['schemas']['RecentCall'];
 export type RegisterRequest = components['schemas']['RegisterRequest'];
+export type ResultsResponse = components['schemas']['ResultsResponse'];
 export type Source = components['schemas']['Source'];
 export type UserResponse = components['schemas']['UserResponse'];
 export type $defs = Record<string, never>;
