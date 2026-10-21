@@ -4,9 +4,13 @@ using Paragrafen.Core.Exceptions;
 
 namespace Paragrafen.Data.Ai;
 
+
 internal static class AiCalls
 {
-    public static async Task<T> CallAsync<T>(Func<Task<T>> call)
+    public const string Chat = "model";
+    public const string Embedding = "embedding";
+
+    public static async Task<T> CallAsync<T>(string codePrefix, string serviceName, Func<Task<T>> call)
     {
         try
         {
@@ -15,12 +19,12 @@ internal static class AiCalls
         catch (ClientResultException ex) when (ex.Status == 429)
         {
             throw new ServiceUnavailableException(
-                "model_busy", "The model is handling too many requests. Try again shortly.", ex);
+                $"{codePrefix}_busy", $"The {serviceName} is handling too many requests. Try again shortly.", ex);
         }
         catch (Exception ex) when (ex is ClientResultException or AuthenticationFailedException)
         {
             throw new BadGatewayException(
-                "model_unavailable", "The language model could not be reached.", ex);
+                $"{codePrefix}_unavailable", $"The {serviceName} could not be reached.", ex);
         }
     }
 }

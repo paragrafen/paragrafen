@@ -9,7 +9,7 @@ public class EmbeddingService(EmbeddingClient embeddingClient) : IEmbeddingServi
     private const int Dimensions = 1536;
 
     public Task<EmbeddingResult> EmbedAsync(string text, CancellationToken cancellationToken) =>
-        AiCalls.CallAsync(async () =>
+        AiCalls.CallAsync(AiCalls.Embedding, "embedding model", async () =>
         {
             OpenAIEmbeddingCollection embeddings = await embeddingClient.GenerateEmbeddingsAsync(
                 [text],

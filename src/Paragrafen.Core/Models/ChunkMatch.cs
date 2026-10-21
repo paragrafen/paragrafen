@@ -6,5 +6,5 @@ public sealed record ChunkMatch(
     string Law,
     string? SectionRef,
     string DokId,
-    int Similarity
+    double Distance
 );
