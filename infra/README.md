@@ -35,6 +35,16 @@ For the apps, pass the image tags you want to run:
 az deployment group create -g rg-paragrafen-dev -f infra/apps.bicep -p webImage=<image> apiImage=<image> ingestImage=<image> jwtSigningKey=<key>
 ```
 
+## Making a user admin
+
+Sign up in the web app, then run this as yourself (see "Getting access"). The role is in the next token, so log in again.
+
+```sql
+INSERT INTO "AspNetUserRoles" ("UserId", "RoleId")
+SELECT u."Id", r."Id" FROM "AspNetUsers" u, "AspNetRoles" r
+WHERE u."NormalizedEmail" = upper('<email>') AND r."NormalizedName" = 'ADMIN';
+```
+
 ## Good to know
 
 - The database is in Norway East because Sweden Central was out of capacity.
