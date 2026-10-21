@@ -84,6 +84,7 @@ public static class DependencyInjection
                    ?? throw new InvalidOperationException($"Foundry:Prices:{deployment} is not configured.");
         });
         services.AddSingleton<ICallLog, CallLog>();
+        services.AddSingleton<IResultsReader, ResultsReader>();
 
 
 
