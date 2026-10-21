@@ -23,7 +23,7 @@ public class AskServiceTests
     private readonly FakeLogger<AskService> _logger = new();
 
     private AskService CreateService(FakeAiModelService model, FakeCallLog? callLog = null) =>
-        new(model,  new FakeEmbeddingService(), new FakeChunkSearch(), AskPrompt.Load("v0"), callLog ?? new FakeCallLog(), Price, _time, _logger);
+        new(model, new FakeEmbeddingService(), new FakeChunkSearch(), AskPrompt.Load("v0"), callLog ?? new FakeCallLog(), Price, _time, _logger);
 
     private FakeAiModelService TakingTime(TimeSpan duration, Func<ModelResult> complete) =>
         new(_ =>
