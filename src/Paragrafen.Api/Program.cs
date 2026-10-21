@@ -33,6 +33,7 @@ builder.Services.AddProblemDetails();
 builder.Services.ConfigureHttpJsonOptions(o =>
 {
     o.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
+    o.SerializerOptions.NumberHandling = JsonNumberHandling.Strict;
     o.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower));
 });
 builder.Services.Configure<RouteHandlerOptions>(o => o.ThrowOnBadRequest = true);
@@ -55,6 +56,7 @@ app.UseAuthorization();
 app.MapAuthEndpoints();
 app.MapHealthEndpoints();
 app.MapAskEndpoints();
+app.MapResultsEndpoints();
 
 app.Run();
 
