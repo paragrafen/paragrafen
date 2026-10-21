@@ -92,7 +92,11 @@ public class AskCallLogTests(PostgresFixture db)
                 .UseSetting("Foundry:Prices:test-model:InputPerMillionNok", "10")
                 .UseSetting("Foundry:Prices:test-model:CachedInputPerMillionNok", "2.5")
                 .UseSetting("Foundry:Prices:test-model:OutputPerMillionNok", "40")
-                .ConfigureTestServices(services => services.AddSingleton(model))
+                .ConfigureTestServices(services =>
+                {
+                    services.AddSingleton(model);
+                    services.AddSingleton<IEmbeddingService, StubEmbeddingService>();
+                })
         );
 
     private sealed class StubAiModelService(Func<ModelResult> complete) : IAiModelService
@@ -102,5 +106,10 @@ public class AskCallLogTests(PostgresFixture db)
             string message,
             CancellationToken cancellationToken
         ) => Task.FromResult(complete());
+    }
+    private sealed class StubEmbeddingService : IEmbeddingService
+    {
+        public Task<EmbeddingResult> EmbedAsync(string text, CancellationToken cancellationToken) =>
+            Task.FromResult(new EmbeddingResult(new float[1536], "text-embedding-3-small", 0));
     }
 }

@@ -10,6 +10,8 @@ namespace Paragrafen.Core.Services;
 
 public class AskService(
     IAiModelService aiModelService,
+    IEmbeddingService embeddingService,
+    IChunkSearch chunkSearch,
     AskPrompt prompt,
     ICallLog callLog,
     ModelPrice modelPrice,
@@ -18,6 +20,7 @@ public class AskService(
 ) : IAskService
 {
     private static readonly TimeSpan CallLogTimeout = TimeSpan.FromSeconds(5);
+    private const int MaxChunks = 5;
 
     public async Task<AskResponse> AskAsync(AskRequest request, CancellationToken cancellationToken, Guid requestId)
     {
@@ -60,6 +63,16 @@ public class AskService(
         var (system, user) = prompt.Render(request.Question, documents);
 
         var result = await CompleteAsync(system, user, record, cancellationToken);
+        var questionEmbedding = await embeddingService.EmbedAsync(request.Question, cancellationToken);
+        var chunks = await chunkSearch.FindClosestAsync(questionEmbedding.Vector, MaxChunks, cancellationToken);
+
+        logger.LogInformation(
+            "Embedded question with {Model} ({Tokens} tokens, {Dimensions} dimensions), found {Count} chunks",
+            questionEmbedding.Model, questionEmbedding.InputTokens, questionEmbedding.Vector.Length, chunks.Count);
+        foreach (var chunk in chunks)
+            logger.LogInformation("{Distance:F3} {Law} {Section}", chunk.Distance, chunk.Law, chunk.SectionRef);
+
+
 
         if (string.IsNullOrWhiteSpace(result.Text))
             throw new BadGatewayException("model_no_answer", "The model did not return anything");
