@@ -1,3 +1,6 @@
+import { Suspense } from "react";
+import { AdminLink } from "./AdminLink";
+
 export function SiteHeader({ loggedIn = false }: { loggedIn?: boolean }) {
   return (
     <header className="mb-8">
@@ -6,11 +9,16 @@ export function SiteHeader({ loggedIn = false }: { loggedIn?: boolean }) {
           <span className="text-primary">§</span> Paragrafen
         </h1>
         {loggedIn && (
-          <form action="/api/logout" method="post">
-            <button className="cursor-pointer rounded-lg border border-border px-3 py-1.5 text-sm text-muted hover:text-foreground">
-              Logg ut
-            </button>
-          </form>
+          <div className="flex items-center gap-2">
+            <Suspense fallback={null}>
+              <AdminLink />
+            </Suspense>
+            <form action="/api/logout" method="post">
+              <button className="cursor-pointer rounded-lg border border-border px-3 py-1.5 text-sm text-muted hover:text-foreground">
+                Logg ut
+              </button>
+            </form>
+          </div>
         )}
       </div>
       <p className="mt-2 text-muted">
