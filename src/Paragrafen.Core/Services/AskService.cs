@@ -87,6 +87,12 @@ public class AskService(
         var answer = ReadTag(result.Text, "answer")
             ?? throw BadFormat(record.RequestId, result.Text);
 
+        // <limitations> is optional; becomes the last paragraph of the answer when present.
+        // Appended before the renumbering, so citations in it are renumbered and linked like the rest of the answer.
+        var limitations = ReadTag(result.Text, "limitations");
+        if (status == AnswerStatus.Answered && !string.IsNullOrWhiteSpace(limitations))
+            answer = $"{answer}\n\n{limitations}";
+
         (answer, var sources) = WithCitedSources(answer, chunks);
 
         // if the model answers without citing sources
@@ -95,11 +101,6 @@ public class AskService(
             status = AnswerStatus.NotFound;
             answer = NotFoundAnswer; // only a suggestion for what to send to frontend, can be changed
         }
-
-        // <limitations> is optional; becomes the last paragraph of the answer when present
-        var limitations = ReadTag(result.Text, "limitations");
-        if (status == AnswerStatus.Answered && !string.IsNullOrWhiteSpace(limitations))
-            answer = $"{answer}\n\n{limitations}";
 
         logger.LogInformation(
             "Request {RequestId}: prompt {PromptVersion}, model status {ModelStatus}, returned status {Status}",
