@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Paragrafen.Api.Endpoints;
@@ -9,12 +10,28 @@ using Paragrafen.Core.Prompts;
 using Paragrafen.Core.Models;
 using Paragrafen.Core.Services;
 using Paragrafen.Data;
-using Paragrafen.Data.Ai;
-using Paragrafen.Data.Calls;
+using Paragrafen.Api.Extensions;
+using Paragrafen.Core;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddOpenApi();
+// The build runs Program.cs to generate contracts/openapi.json, without secrets.
+// These placeholders only satisfy startup validation; nothing connects or signs with them.
+if (Assembly.GetEntryAssembly()?.GetName().Name == "GetDocument.Insider")
+{
+    builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+    {
+        ["ConnectionStrings:Paragrafen"] = "Host=localhost;Database=openapi;Username=openapi;Password=openapi",
+        ["Jwt:IssuerSigningKey"] = new string('x', 32),
+    });
+}
+
+
+builder.Services.AddData(builder.Configuration);
+builder.Services.AddCore();
+builder.Services.AddJwtAuth(builder.Configuration, builder.Environment);
+
+builder.Services.AddApiDocumentation();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 
@@ -62,6 +79,7 @@ builder.Services.AddSingleton(_ =>
 builder.Services.AddSingleton<ICallLog, CallLog>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IAskService, AskService>();
+builder.Services.AddCorsPolicy(builder.Configuration);
 
 var app = builder.Build();
 
@@ -70,11 +88,16 @@ app.UseExceptionHandler();
 
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
-    app.UseSwaggerUI(options => options.SwaggerEndpoint("/openapi/v1.json", "Paragrafen API"));
+    app.MapApiDocumentation();
 }
 
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapAuthEndpoints();
 app.MapHealthEndpoints();
 app.MapAskEndpoints();
 
 app.Run();
+
+public partial class Program { } // needed for integration tests

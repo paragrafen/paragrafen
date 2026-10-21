@@ -5,7 +5,7 @@ Everything runs in Azure, in the resource group `rg-paragrafen-dev` (subscriptio
 - `main.bicep`: the base. Database, model access (Foundry), container registry, logging and permissions.
 - `apps.bicep`: the three apps: `web` (public), `api` (internal only) and `ingest` (runs every night).
 
-No passwords or keys are used. The apps and GitHub log in with their own Azure identities, and so do you.
+Only JWT signing key is used. The apps and GitHub log in with their own Azure identities, and so do you.
 
 ## Getting access
 
@@ -32,7 +32,7 @@ az deployment group create -g rg-paragrafen-dev -p infra/main.bicepparam
 For the apps, pass the image tags you want to run:
 
 ```bash
-az deployment group create -g rg-paragrafen-dev -f infra/apps.bicep -p webImage=<image> apiImage=<image> ingestImage=<image>
+az deployment group create -g rg-paragrafen-dev -f infra/apps.bicep -p webImage=<image> apiImage=<image> ingestImage=<image> jwtSigningKey=<key>
 ```
 
 ## Good to know

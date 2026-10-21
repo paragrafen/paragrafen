@@ -3,6 +3,7 @@ using Paragrafen.Core.Contracts;
 using Paragrafen.Core.Exceptions;
 using System.ClientModel;
 using Azure.Identity;
+using FluentValidation;
 
 namespace Paragrafen.Api.ExceptionHandlers;
 
@@ -30,6 +31,11 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
                 StatusCodes.Status400BadRequest,
                 "invalid_request",
                 "The request could not be read. Check the query string and the JSON body."
+            ),
+            ValidationException ex => (
+                StatusCodes.Status400BadRequest,
+                "validation_failed",
+                ex.Errors.FirstOrDefault()?.ErrorMessage ?? "The request is invalid."
             ),
             BadRequestException ex => (StatusCodes.Status400BadRequest, "invalid_request", ex.Message),
             UnauthorizedException ex => (StatusCodes.Status401Unauthorized, "unauthorized", ex.Message),
