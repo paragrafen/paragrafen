@@ -103,6 +103,34 @@ public class AskService(
         );
     }
 
+    private async Task<ModelResult> CompleteAsync(string system, string message, CallRecord record, CancellationToken cancellationToken)
+    {
+        var started = timeProvider.GetTimestamp();
+        ModelResult? result = null;
+        try
+        {
+            result = await aiModelService.CompleteAsync(system, message, cancellationToken);
+            return result;
+        }
+        finally
+        {
+            record.AddModelCall(result, timeProvider.GetElapsedTime(started), modelPrice);
+        }
+    }
+
+    private async Task WriteCallLogAsync(CallRecord record)
+    {
+        try
+        {
+            using var timeout = new CancellationTokenSource(CallLogTimeout, timeProvider);
+            await callLog.WriteAsync(record, timeout.Token);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Could not write call log for request {RequestId}", record.RequestId);
+        }
+    }
+
     // logs the start of the reply and returns the 502 to throw
     private BadGatewayException BadFormat(Guid requestId, string reply)
     {

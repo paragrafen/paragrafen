@@ -83,6 +83,7 @@ public static class DependencyInjection
             return configuration.GetSection($"Foundry:Prices:{deployment}").Get<ModelPrice>()
                    ?? throw new InvalidOperationException($"Foundry:Prices:{deployment} is not configured.");
         });
+        services.AddSingleton(AskPrompt.Load("v0"));
         services.AddSingleton<ICallLog, CallLog>();
 
 
