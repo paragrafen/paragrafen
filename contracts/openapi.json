@@ -210,6 +210,41 @@
           }
         }
       }
+    },
+    "/results": {
+      "get": {
+        "tags": [
+          "Results"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -310,6 +345,124 @@
           }
         }
       },
+      "CallStats": {
+        "required": [
+          "calls",
+          "answered",
+          "not_found",
+          "out_of_scope",
+          "errors",
+          "error_rate",
+          "cost_nok_total",
+          "cost_nok_median",
+          "cost_nok_p95",
+          "latency_ms_p50",
+          "latency_ms_p95",
+          "llm_latency_ms_p50",
+          "input_tokens",
+          "cached_tokens",
+          "output_tokens",
+          "reasoning_tokens"
+        ],
+        "type": "object",
+        "properties": {
+          "calls": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "answered": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "not_found": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "out_of_scope": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "errors": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "error_rate": {
+            "type": "number",
+            "format": "double"
+          },
+          "cost_nok_total": {
+            "type": "number",
+            "format": "double"
+          },
+          "cost_nok_median": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "cost_nok_p95": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "latency_ms_p50": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "latency_ms_p95": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "llm_latency_ms_p50": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "input_tokens": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "cached_tokens": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "output_tokens": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "reasoning_tokens": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "DayStats": {
+        "required": [
+          "date",
+          "stats"
+        ],
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "stats": {
+            "$ref": "#/components/schemas/CallStats"
+          }
+        }
+      },
       "ErrorDetail": {
         "required": [
           "code",
@@ -356,6 +509,66 @@
           }
         }
       },
+      "RecentCall": {
+        "required": [
+          "request_id",
+          "created_at",
+          "status",
+          "failure_reason",
+          "model",
+          "attempts",
+          "input_tokens",
+          "output_tokens",
+          "cost_nok",
+          "latency_ms"
+        ],
+        "type": "object",
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string"
+          },
+          "failure_reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "model": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "attempts": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "input_tokens": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "output_tokens": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "cost_nok": {
+            "type": "number",
+            "format": "double"
+          },
+          "latency_ms": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "RegisterRequest": {
         "required": [
           "email",
@@ -372,6 +585,36 @@
           },
           "password": {
             "type": "string"
+          }
+        }
+      },
+      "ResultsResponse": {
+        "required": [
+          "generated_at",
+          "total",
+          "days",
+          "recent_calls"
+        ],
+        "type": "object",
+        "properties": {
+          "generated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "total": {
+            "$ref": "#/components/schemas/CallStats"
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DayStats"
+            }
+          },
+          "recent_calls": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecentCall"
+            }
           }
         }
       },
@@ -453,6 +696,9 @@
     },
     {
       "name": "AskEndpoints"
+    },
+    {
+      "name": "Results"
     }
   ]
 }

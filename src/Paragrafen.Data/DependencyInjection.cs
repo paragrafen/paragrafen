@@ -91,6 +91,7 @@ public static class DependencyInjection
         });
         services.AddSingleton(AskPrompt.Load("v0"));
         services.AddSingleton<ICallLog, CallLog>();
+        services.AddSingleton<IResultsReader, ResultsReader>();
         services.AddSingleton<IChunkSearch, ChunkSearch>();
 
 
