@@ -1,3 +1,7 @@
+using System.Security;
+using System.Text;
+using Paragrafen.Core.Models;
+
 namespace Paragrafen.Core.Prompts;
 
 public class AskPrompt
@@ -38,4 +42,19 @@ public class AskPrompt
 
     public (string System, string User) Render(string question, string documents) =>
         (_system, _userTemplate.Replace("{{documents}}", documents).Replace("{{question}}", question));
+
+    // One <document> per chunk, in the format the prompt's examples use. Ids are numbered from 1 in search order,
+    // and the model cites them as [1], [2], so the same order must be used when turning citations into sources.
+    public static string FormatDocuments(IReadOnlyList<ChunkMatch> chunks)
+    {
+        var documents = new StringBuilder();
+        for (var i = 0; i < chunks.Count; i++)
+        {
+            var chunk = chunks[i];
+            documents.Append($"<document id=\"{i + 1}\" law=\"{SecurityElement.Escape(chunk.Law)}\" section=\"{SecurityElement.Escape(chunk.SectionRef ?? "")}\">\n");
+            documents.Append(chunk.Text.Trim()).Append("\n</document>\n");
+        }
+
+        return documents.ToString().TrimEnd();
+    }
 }
