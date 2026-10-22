@@ -23,7 +23,7 @@ def fake_response(question: str) -> dict:
         "request_id": "r-1",
         "conversation_id": "c-1",
         "status": "answered",
-        "answer": "Etter § 10-8 skal du ha minst 11 timer fri.",
+        "answer": "Etter § 10-8 skal du ha minst 11 timer fri [2].",
         "sources": [
             {
                 "chunk_id": "c-9",
@@ -101,6 +101,8 @@ def test_end_to_end_run_and_compare(api_url, tmp_path, capsys):
     rows = {r["id"]: r for r in run_eval.load_jsonl(run_a / "rows.jsonl")}
     assert rows["ans-0001"]["retrieved_keys"] == [f"{AML}/§10-9", f"{AML}/§10-8"]
     assert rows["ans-0001"]["cited_keys"] == [f"{AML}/§10-8"]
+    assert rows["ans-0001"]["mentioned_keys"] == [f"{AML}/§10-8"]
+    assert rows["ans-0001"]["mention_validity"] == 1.0
     assert rows["ans-0001"]["request_id"] == "r-1"
     assert rows["ans-0001"]["recall"] == 1.0
     assert rows["ans-0001"]["citation_validity"] == 1.0
@@ -141,6 +143,7 @@ def test_failed_request_is_recorded_not_raised(tmp_path):
     assert row["status"] is None and row["error"]
     summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
     assert summary["overall"]["n_errors"] == 1
+    assert summary["overall"]["n_scoring_errors"] == 0
 
 
 def test_source_without_section_is_recorded_not_raised():
@@ -151,5 +154,10 @@ def test_source_without_section_is_recorded_not_raised():
     row = run_eval.evaluate(q, response, None, None, None)
 
     assert row["status"] == "ANSWERED"
-    assert row["error"].startswith("could not score")
+    assert row["scoring_error"].startswith("could not score")
+    assert row["error"] is None
     assert "recall" not in row
+
+    overall = run_eval.aggregate([row], ["recall"])
+    assert overall["n_errors"] == 0
+    assert overall["n_scoring_errors"] == 1

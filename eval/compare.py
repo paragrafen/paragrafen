@@ -15,6 +15,7 @@ LOWER_IS_BETTER = {
     "over_abstention_rate",
     "wrongful_answer_rate",
     "n_errors",
+    "n_scoring_errors",
     "contradicts_sources",
     "cites_wrong_section",
     "unanswerable_with_citations",

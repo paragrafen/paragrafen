@@ -4,7 +4,12 @@ from types import SimpleNamespace
 import pytest
 
 from metrics.abstention import abstention_metrics, map_status
-from metrics.citations import citation_metrics, cited_keys_from_answer
+from metrics.citations import (
+    citation_metrics,
+    cited_keys_from_markers,
+    mention_validity,
+    mentioned_keys_from_answer,
+)
 from metrics.faithfulness import (
     FaithfulnessJudgement,
     faithfulness_score,
@@ -43,6 +48,15 @@ def test_key_from_item_takes_law_id_from_url_when_law_is_a_title():
         "law": "Lov om arbeidsmiljø, arbeidstid og stillingsvern mv. (arbeidsmiljøloven)",
         "section": "§ 15-8",
         "url": "https://lovdata.no/dokument/NL/lov/2005-06-17-62",
+    }
+    assert key_from_item(source) == f"{AML}/§15-8"
+
+
+def test_key_from_item_reads_law_id_from_url_with_section():
+    source = {
+        "law": "Arbeidsmiljøloven",
+        "section": "§ 15-8",
+        "url": "https://lovdata.no/dokument/NL/lov/2005-06-17-62/%C2%A715-8",
     }
     assert key_from_item(source) == f"{AML}/§15-8"
 
@@ -154,30 +168,54 @@ SOURCES = [
 ]
 
 
-def test_cited_keys_from_answer_one_section_per_sign():
-    assert cited_keys_from_answer("Se § 10-9 i loven.", SOURCES) == [f"{AML}/§10-9"]
-    assert cited_keys_from_answer("Se § 10-9 og § 42 a", SOURCES) == [
+def test_mentioned_keys_from_answer_one_section_per_sign():
+    assert mentioned_keys_from_answer("Se § 10-9 i loven.", SOURCES) == [f"{AML}/§10-9"]
+    assert mentioned_keys_from_answer("Se § 10-9 og § 42 a", SOURCES) == [
         f"{AML}/§10-9",
         f"{AML}/§42a",
     ]
-    assert cited_keys_from_answer("jf. §10-9, § 42 a", SOURCES) == [
+    assert mentioned_keys_from_answer("jf. §10-9, § 42 a", SOURCES) == [
         f"{AML}/§10-9",
         f"{AML}/§42a",
     ]
     # a number without its own § is not a citation
-    assert cited_keys_from_answer("§ 10-9 og 42 a", SOURCES) == [f"{AML}/§10-9"]
-    assert cited_keys_from_answer("etter § 10-9 og 11 timer", SOURCES) == [
+    assert mentioned_keys_from_answer("§ 10-9 og 42 a", SOURCES) == [f"{AML}/§10-9"]
+    assert mentioned_keys_from_answer("etter § 10-9 og 11 timer", SOURCES) == [
         f"{AML}/§10-9"
     ]
-    assert cited_keys_from_answer("§ 10-9, 2. ledd", SOURCES) == [f"{AML}/§10-9"]
+    assert mentioned_keys_from_answer("§ 10-9, 2. ledd", SOURCES) == [f"{AML}/§10-9"]
 
 
-def test_cited_keys_from_answer_ambiguous_and_unmatched():
+def test_mentioned_keys_from_answer_ambiguous_and_unmatched():
     # § 10-8 exists in both retrieved laws, so both count as cited
-    assert cited_keys_from_answer("§ 10-8", SOURCES) == [f"{AML}/§10-8", f"{HL}/§10-8"]
+    assert mentioned_keys_from_answer("§ 10-8", SOURCES) == [
+        f"{AML}/§10-8",
+        f"{HL}/§10-8",
+    ]
     # a section that was never retrieved can't be given a law
-    assert cited_keys_from_answer("§ 99", SOURCES) == ["?/§99"]
-    assert cited_keys_from_answer("Ingen paragrafer her.", SOURCES) == []
+    assert mentioned_keys_from_answer("§ 99", SOURCES) == ["?/§99"]
+    assert mentioned_keys_from_answer("Ingen paragrafer her.", SOURCES) == []
+
+
+def test_cited_keys_from_markers_follow_the_sources():
+    assert cited_keys_from_markers("A [2]. B [1]. C [2].", SOURCES) == [
+        f"{AML}/§10-9",
+        f"{AML}/§10-8",
+    ]
+    # a citation without a written § still counts
+    assert cited_keys_from_markers("Du har krav på pause [1].", SOURCES) == [
+        f"{AML}/§10-8"
+    ]
+
+
+def test_cited_keys_from_markers_outside_sources_and_none():
+    assert cited_keys_from_markers("Se [9].", SOURCES) == ["?/[9]"]
+    assert cited_keys_from_markers("§ 10-8 uten lenke.", SOURCES) == []
+
+
+def test_mention_validity():
+    assert mention_validity([f"{AML}/§10-8", "?/§99"], [f"{AML}/§10-8"]) == 0.5
+    assert mention_validity([], [f"{AML}/§10-8"]) is None
 
 
 def test_citations_flag_sections_that_were_not_retrieved():

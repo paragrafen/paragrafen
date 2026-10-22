@@ -35,6 +35,8 @@ def abstention_metrics(rows: list[dict]) -> dict:
 
     'rows' need 'expected_status' (from the dataset) and 'status' (mapped from the API).
     Rows whose 'status' is None (request failed, unknown status) are counted in n_errors and skipped.
+    Rows with a readable status count in the rates even if their retrieval/citation scoring failed;
+    those are counted in n_scoring_errors by run_eval.aggregate().
     """
 
     scored = [r for r in rows if r["status"] is not None]

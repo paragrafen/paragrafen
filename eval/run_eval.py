@@ -16,7 +16,12 @@ from pathlib import Path
 from statistics import mean
 
 from metrics.abstention import ANSWERED, abstention_metrics, map_status
-from metrics.citations import citation_metrics, cited_keys_from_answer
+from metrics.citations import (
+    citation_metrics,
+    cited_keys_from_markers,
+    mention_validity,
+    mentioned_keys_from_answer,
+)
 from metrics.retrieval import dedupe, key_from_item, retrieval_set_metrics
 
 EVAL_DIR = Path(__file__).parent
@@ -78,6 +83,7 @@ def evaluate(
         "api_status": None,
         "status": None,
         "error": error,
+        "scoring_error": None,
     }
     if response is None:
         return row
@@ -92,15 +98,20 @@ def evaluate(
     )
     try:
         retrieved_keys = dedupe(key_from_item(s) for s in sources)
-        cited_keys = cited_keys_from_answer(answer, sources)
+        cited_keys = cited_keys_from_markers(answer, sources)
+        mentioned_keys = mentioned_keys_from_answer(answer, sources)
     except KeyError as e:  # a source without a readable law ID or section
-        row["error"] = f"could not score: {e}"
+        row["scoring_error"] = f"could not score: {e}"
         return row
-    row.update(retrieved_keys=retrieved_keys, cited_keys=cited_keys)
+    row.update(
+        retrieved_keys=retrieved_keys,
+        cited_keys=cited_keys,
+        mentioned_keys=mentioned_keys,
+    )
     if row["status"] is None:
         row["error"] = f"unknown API status: {response.get('status')!r}"
-    elif "sources" not in response:
-        row["error"] = "response has no 'sources' field"
+    if "sources" not in response:
+        row["scoring_error"] = "response has no 'sources' field"
 
     if q["expected_sections"] and "sources" in response:
         row.update(
@@ -113,6 +124,7 @@ def evaluate(
             cited_keys, retrieved_keys, q["expected_sections"], q["acceptable_sections"]
         )
     )
+    row["mention_validity"] = mention_validity(mentioned_keys, retrieved_keys)
     if judge_client is not None and row["status"] == ANSWERED:
         from metrics.faithfulness import judge_faithfulness
 
@@ -136,6 +148,7 @@ def metric_keys(args) -> list[str]:
         "citation_validity",
         "citation_precision",
         "citation_recall",
+        "mention_validity",
     ]
     if args.judge:
         keys += ["faithfulness", "contradicts_sources", "cites_wrong_section"]
@@ -151,6 +164,7 @@ def aggregate(rows: list[dict], keys: list[str]) -> dict:
     unanswerable = [
         r for r in rows if r["expected_status"] != ANSWERED and r["status"] is not None
     ]
+    out["n_scoring_errors"] = sum(bool(r.get("scoring_error")) for r in rows)
     out["unanswerable_with_citations"] = (
         mean(bool(r.get("cited_keys")) for r in unanswerable) if unanswerable else None
     )
@@ -259,6 +273,7 @@ def main(argv=None) -> int:
         print(
             f"[{i}/{len(questions)}] {q['id']} {row['status'] or 'ERROR'}"
             + (f"  ({row['error']})" if row["error"] else "")
+            + (f"  ({row['scoring_error']})" if row["scoring_error"] else "")
         )
 
     keys = metric_keys(args)
@@ -284,7 +299,14 @@ def main(argv=None) -> int:
         encoding="utf-8",
     )
 
-    columns = ["n", "over_abstention_rate", "wrongful_answer_rate", "n_errors", *keys]
+    columns = [
+        "n",
+        "over_abstention_rate",
+        "wrongful_answer_rate",
+        "n_errors",
+        "n_scoring_errors",
+        *keys,
+    ]
     print_table("Overall", {"all": summary["overall"]}, columns)
     for field in SLICES:
         print_table(f"By {field}", summary[field], columns)

@@ -17,7 +17,7 @@ def section_key(law_id: str, section: str) -> str:
 
 
 _LOVDATA_DOCUMENT_URL = re.compile(
-    r"/dokument/(?:NL/lov|SF/forskrift)/(\d{4}-\d{2}-\d{2}-\d+)/?$"
+    r"/dokument/(?:NL/lov|SF/forskrift)/(\d{4}-\d{2}-\d{2}-\d+)(?:[/?#]|$)"
 )
 _ID_PREFIX = {"lov": "LOV", "forskrift": "FOR"}
 
