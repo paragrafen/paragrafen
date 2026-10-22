@@ -245,12 +245,25 @@ describe("without API_URL in development", () => {
     expect((await res.json()).request_id).toBe("mock");
   });
 
-  it("does not mock other paths", async () => {
+  it("answers GET /results with a mock response", async () => {
     const fetchMock = stubFetch(new Response());
 
     const res = await GET(
       new NextRequest("http://web/api/results"),
       context("results"),
+    );
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(res.status).toBe(200);
+    expect((await res.json()).total.calls).toBeGreaterThan(0);
+  });
+
+  it("does not mock other paths", async () => {
+    const fetchMock = stubFetch(new Response());
+
+    const res = await GET(
+      new NextRequest("http://web/api/feedback"),
+      context("feedback"),
     );
 
     expect(fetchMock).not.toHaveBeenCalled();
