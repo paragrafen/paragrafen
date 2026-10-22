@@ -28,9 +28,11 @@ internal sealed class FakeEmbeddingService : IEmbeddingService
 
 internal sealed class FakeChunkSearch : IChunkSearch
 {
+    public IReadOnlyList<ChunkMatch> Matches { get; init; } = [];
+
     public Task<IReadOnlyList<ChunkMatch>> FindClosestAsync(
         ReadOnlyMemory<float> embedding, int limit, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<ChunkMatch>>([]);
+        Task.FromResult(Matches);
 }
 
 internal sealed class FakeCallLog : ICallLog

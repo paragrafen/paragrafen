@@ -42,6 +42,42 @@ public class AskServiceTests
         Assert.Equal(Answer, response.Answer);
     }
 
+    [Theory]
+    [InlineData("§15-6", "/%C2%A715-6")]
+    [InlineData("§ 15-6", "/%C2%A715-6")]
+    [InlineData(" § 15-6 ", "/%C2%A715-6")]
+    [InlineData("§\t15-6\r\n", "/%C2%A715-6")]
+    [InlineData(null, "")]
+    [InlineData("", "")]
+    [InlineData("   ", "")]
+    public async Task Source_url_includes_encoded_section(string? sectionRef, string suffix)
+    {
+        const string dokId = "NL/lov/2005-06-17-62";
+        var search = new FakeChunkSearch
+        {
+            Matches =
+            [
+                new ChunkMatch(
+                    Guid.CreateVersion7(), "Lovtekst", "Arbeidsmiljøloven",
+                    sectionRef, dokId, 0.1)
+            ]
+        };
+        var model = FakeAiModelService.Returning(Usage with
+        {
+            Text = "<status>ANSWERED</status><answer>Se loven [1].</answer>"
+        });
+        var service = new AskService(
+            model, new FakeEmbeddingService(), search,
+            AskPrompt.Load("v0"), new FakeCallLog(), Price, _time, _logger);
+
+        var response = await service.AskAsync(
+            new AskRequest(Question), CancellationToken.None, Guid.CreateVersion7());
+
+        Assert.Equal(AnswerStatus.Answered, response.Status);
+        var source = Assert.Single(response.Sources);
+        Assert.Equal($"https://lovdata.no/dokument/{dokId}{suffix}", source.Url.AbsoluteUri);
+    }
+
     [Fact]
     public async Task Prompt_and_question_are_sent_separately()
     {
@@ -51,7 +87,7 @@ public class AskServiceTests
 
         Assert.StartsWith("<role>", model.LastPrompt);
         Assert.DoesNotContain(Question, model.LastPrompt);
-        Assert.Contains($"<question>\n{Question}\n</question>", model.LastMessage);
+        Assert.Contains($"<question>\n{Question}\n</question>", model.LastMessage?.ReplaceLineEndings("\n"));
     }
 
     [Fact]
