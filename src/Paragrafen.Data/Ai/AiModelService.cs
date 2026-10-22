@@ -10,7 +10,7 @@ namespace Paragrafen.Data.Ai;
 
 public class AiModelService(ChatClient chatClient) : IAiModelService
 {
-    private const int MaxOutputTokens = 5000;
+    private const int MaxOutputTokens = 10000;
 
     public Task<ModelResult> CompleteAsync(string prompt, string message, CancellationToken cancellationToken) =>
         AiCalls.CallAsync(AiCalls.Chat, "language model", async () =>
