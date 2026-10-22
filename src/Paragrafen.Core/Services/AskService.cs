@@ -198,7 +198,17 @@ public class AskService(
         chunk.Law,
         "", // note: no provision heading in ChunkMatch yet; agree with the frontend what goes here
         chunk.SectionRef ?? "",
-        LovdataUrl(chunk.DokId));
+        LovdataUrl(chunk.DokId, chunk.SectionRef));
 
-    private static Uri LovdataUrl(string dokId) => new($"https://lovdata.no/dokument/{dokId}");
+    private static Uri LovdataUrl(string dokId, string? sectionRef)
+    {
+        var url = $"https://lovdata.no/dokument/{dokId}";
+
+        if (string.IsNullOrWhiteSpace(sectionRef))
+            return new Uri(url);
+
+        var anchor = Uri.EscapeDataString(
+            Regex.Replace(sectionRef, @"\s+", ""));
+        return new Uri($"{url}/{anchor}");
+    }
 }
