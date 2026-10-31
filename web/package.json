@@ -10,7 +10,7 @@
     "gen:types": "openapi-typescript ../contracts/openapi.json --root-types --root-types-no-schema-prefix -o src/types.ts"
   },
   "dependencies": {
-    "next": "16.4.0",
+    "next": "16.4.1",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },
